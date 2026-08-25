@@ -1,0 +1,38 @@
+name: Defecto
+description: Algo no funciona como está documentado.
+labels: ["defecto"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Versión y plataforma
+      placeholder: 0.2.0 · Windows Server 2022
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Qué esperabas, y dónde lo dice
+      description: Enlaza la línea de la documentación si aplica.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Qué ocurrió
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Cómo reproducirlo
+      description: Si `bash scripts/smoke.sh` falla en tu máquina, incluye su salida.
+    validations:
+      required: true
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Antes de enviar
+      options:
+        - label: Revisé que no haya tokens, direcciones internas ni nombres de usuario reales en lo que pego.
+          required: true

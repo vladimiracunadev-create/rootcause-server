@@ -1,38 +1,310 @@
 name: CI
 
+# Every gate that decides whether this repository can be trusted runs here.
+# The `gate` job at the bottom is the one branch protection points at: it fails
+# if any single check failed, was skipped or was cancelled, so a green tick can
+# never mean "half the checks did not run".
+
 on:
   push:
-    branches: [master, main]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+  MSRV: "1.95.0"
+
 jobs:
-  quality:
-    name: Format and clippy
+  format:
+    name: Formato
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          toolchain: 1.95.0
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: "1.95.0"
+          components: rustfmt
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
 
-  test:
-    name: Test ${{ matrix.os }}
+  clippy:
+    name: Clippy (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          toolchain: 1.95.0
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: "1.95.0"
+          components: clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: clippy-${{ matrix.os }}
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  test:
+    name: Pruebas ${{ matrix.os }} · ${{ matrix.toolchain }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        toolchain: ["1.95.0", stable]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: test-${{ matrix.os }}-${{ matrix.toolchain }}
+      - run: cargo test --workspace --all-targets --locked
+      - name: Pruebas de documentación
+        run: cargo test --workspace --doc --locked
+
+  docs:
+    name: Documentación del API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: docs
+      - run: cargo doc --workspace --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  coverage:
+    name: Cobertura
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: "1.95.0"
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: coverage
+      - uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
+        with:
+          tool: cargo-llvm-cov
+      - name: Medir cobertura del núcleo de detección
+        run: |
+          cargo llvm-cov --workspace --locked --lcov --output-path lcov.info \
+            --fail-under-lines 80
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: coverage-lcov
+          path: lcov.info
+          if-no-files-found: warn
+
+  dependencies:
+    name: Dependencias y licencias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: "1.95.0"
+      - uses: taiki-e/install-action@b6ff580856c41316412a0b9b60540fbc6f8c82cc # v2.86.7
+        with:
+          tool: cargo-deny,cargo-audit
+      - name: Licencias, duplicados y orígenes
+        run: cargo deny --all-features check
+      - name: Avisos de seguridad publicados
+        run: cargo audit --deny warnings
+
+  msrv:
+    name: Versión mínima de Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: msrv
+      - name: La MSRV declarada es exactamente la que se compila
+        run: |
+          declared="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
+          pinned="$(grep -m1 '^channel' rust-toolchain.toml | cut -d'"' -f2)"
+          echo "Cargo.toml declara $declared · rust-toolchain.toml fija $pinned"
+          case "$pinned" in
+            "$declared"*) ;;
+            *)
+              echo "::error::rust-version=$declared no coincide con el canal $pinned"
+              exit 1
+              ;;
+          esac
+          cargo check --workspace --all-targets --locked
+
+  console:
+    name: Consola embebida
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Sintaxis de la consola
+        run: |
+          for file in console/*.js; do
+            node --check "$file"
+          done
+      - name: Sin script en línea, sin origen externo, sin sumideros de marcado
+        run: python3 scripts/guard_console.py
+
+  claims:
+    name: Coherencia de lo que se afirma
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Los números de los documentos salen del código
+        run: python3 scripts/guard_claims.py
+
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          curl -fsSL --retry 3 -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color
+      - name: zizmor
+        run: |
+          python3 -m pip install --user --break-system-packages --quiet 'zizmor==1.5.2'
+          "$HOME/.local/bin/zizmor" --persona=regular --no-progress .github/workflows
+
+  markdown:
+    name: Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: npx --yes markdownlint-cli2@0.18.1 "**/*.md" "#target"
+
+  encoding:
+    name: Integridad del texto
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: UTF-8 sin BOM, sin CRLF y sin caracteres corruptos
+        run: python3 scripts/guard_encoding.py
+
+  container:
+    name: Imagen de contenedor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: hadolint
+        env:
+          HADOLINT_VERSION: 2.14.0
+        run: |
+          curl -fsSL --retry 3 -o hadolint \
+            "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+          chmod +x hadolint
+          ./hadolint Dockerfile
+      - name: Construir la imagen
+        run: docker build --tag rootcause-server:ci .
+      - name: Analizar la imagen construida
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: rootcause-server:ci
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+  smoke:
+    name: Prueba de humo extremo a extremo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: smoke
+      - name: Servidor y agente reales sobre esta máquina
+        run: bash scripts/smoke.sh
+
+  gate:
+    name: Todo en verde
+    runs-on: ubuntu-latest
+    needs:
+      - format
+      - clippy
+      - test
+      - docs
+      - coverage
+      - dependencies
+      - msrv
+      - console
+      - claims
+      - workflows
+      - markdown
+      - encoding
+      - container
+      - smoke
+    if: always()
+    steps:
+      - name: Ningún control puede quedar sin ejecutar
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "resultados: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::un control terminó en '$result'; la rama no queda en verde"
+              exit 1
+            fi
+          done
+          echo "todos los controles pasaron"

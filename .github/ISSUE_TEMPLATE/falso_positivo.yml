@@ -1,0 +1,50 @@
+name: Falso positivo o negativo de una regla
+description: Una regla disparó cuando no debía, o no disparó cuando debía.
+labels: ["deteccion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un falso positivo entrena a un equipo a ignorar el panel. Es un defecto
+        de la misma gravedad que un hallazgo que no aparece.
+  - type: input
+    id: rule
+    attributes:
+      label: Identificador de la regla
+      description: El que aparece en la consola o en `rootcause-server rules`.
+      placeholder: exposure.service.public
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Qué ocurrió
+      options:
+        - Disparó y no debía (falso positivo)
+        - No disparó y debía (falso negativo)
+        - La severidad no corresponde
+        - El texto del hallazgo induce a error
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidencia del incidente
+      description: Cópiala del cajón de detalle. **Redacta direcciones y nombres si hace falta.**
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: reality
+    attributes:
+      label: Qué es cierto en realidad
+      description: Qué está realmente configurado en ese equipo.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión y plataforma
+      placeholder: 0.2.0 · Debian 13 · agente sin privilegios
+    validations:
+      required: true

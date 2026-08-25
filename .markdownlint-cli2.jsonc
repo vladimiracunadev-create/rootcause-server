@@ -1,0 +1,14 @@
+{
+  // Estilo de la casa RootCause (igual que las ediciones Windows, Web y Mobile):
+  // tablas compactas |---|---| y parrafos sin corte duro a 80 columnas.
+  "config": {
+    "MD013": false,
+    "MD033": false,
+    "MD041": false,
+    "MD060": false,
+    // Keep a Changelog repite "Anadido" / "Cambiado" / "Corregido" en cada
+    // version. Son hermanos de secciones distintas, no duplicados de verdad.
+    "MD024": { "siblings_only": true }
+  },
+  "ignores": ["node_modules/**", "dist/**", "target/**"]
+}

@@ -1,0 +1,8 @@
+# Reglas ignoradas, con su razón. Una supresión sin motivo escrito es deuda.
+ignored:
+  # DL3008 pide fijar la versión de cada paquete de apt. En una imagen base que
+  # se actualiza para recibir parches de seguridad, fijar `ca-certificates` a
+  # una versión concreta congela justamente lo que hay que mantener al día.
+  - DL3008
+trustedRegistries:
+  - docker.io

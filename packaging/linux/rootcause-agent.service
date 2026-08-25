@@ -1,5 +1,6 @@
 [Unit]
-Description=RootCause native telemetry agent
+Description=RootCause read-only telemetry and security sensor
+Documentation=https://github.com/vladimiracunadev-create/rootcause-server
 After=network-online.target
 Wants=network-online.target
 
@@ -11,13 +12,29 @@ EnvironmentFile=/etc/rootcause/agent.env
 ExecStart=/usr/local/bin/rootcause-agent
 Restart=on-failure
 RestartSec=10s
+
+# El agente no escribe nada en el host. Este bloque lo hace cumplir el sistema,
+# no la buena voluntad del binario.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
 CapabilityBoundingSet=
 LockPersonality=true
+MemoryDenyWriteExecute=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+
+# Para leer los eventos de autenticación sin ser root, basta con pertenecer a
+# los grupos que ya pueden leerlos. Sin esto, el agente reporta la superficie de
+# autenticación como brecha —lo cual es correcto— pero no la vigila.
+SupplementaryGroups=adm systemd-journal
 
 [Install]
 WantedBy=multi-user.target

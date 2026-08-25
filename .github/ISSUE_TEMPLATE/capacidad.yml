@@ -1,0 +1,28 @@
+name: Nueva capacidad
+description: Algo que RootCause Server debería detectar o hacer.
+labels: ["capacidad"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Qué pregunta operativa responde
+      description: |
+        Una regla que no responde una pregunta que alguien se hace a las tres de
+        la mañana no debería existir. Escríbela como pregunta.
+      placeholder: "¿Alguien está usando una cuenta de servicio desde fuera de la red interna?"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Qué evidencia observable la sustenta
+      description: Qué tendría que ver el agente para poder afirmarlo.
+    validations:
+      required: true
+  - type: textarea
+    id: response
+    attributes:
+      label: Qué haría un operador al verlo
+      description: Si no hay respuesta posible, probablemente no es un hallazgo.
+    validations:
+      required: true

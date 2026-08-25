@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>RootCause Server · Defensa de servidores con evidencia</title>
+    <meta name="description" content="Plano de control local que vigila la superficie expuesta de tus servidores, la presión sobre su autenticación y la integridad de sus archivos críticos, y explica cada hallazgo con evidencia y runbook.">
+    <link rel="icon" href="rootcause.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="landing.css">
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <div class="brand">
+          <img src="rootcause.svg" alt="" width="46" height="46">
+          <span>RootCause <strong>Server</strong></span>
+        </div>
+
+        <h1>Tu servidor ya escribe registros.<br>Nadie los está mirando juntos.</h1>
+        <p class="lede">
+          PHP tiene su log. La base de datos tiene el suyo. El sistema tiene el suyo.
+          Cada uno ve su parte y ninguno ve la frase completa: un puerto de base de datos
+          publicado a Internet, una ráfaga de intentos de acceso desde una sola dirección
+          y, después, una sesión concedida. <strong>RootCause Server correlaciona esas tres
+          cosas y las explica con evidencia</strong>, antes de que el incidente tenga nombre.
+        </p>
+
+        <div class="actions">
+          <a class="button primary" href="https://github.com/vladimiracunadev-create/rootcause-server">
+            Ver el repositorio
+          </a>
+          <a class="button" href="https://github.com/vladimiracunadev-create/rootcause-server/releases/latest">
+            Descargar la última versión
+          </a>
+        </div>
+
+        <ul class="chips">
+          <li>Rust · Windows, Linux y macOS</li>
+          <li>18 reglas publicadas por el binario</li>
+          <li>Consola local sin dependencias web</li>
+          <li>Telemetría hacia terceros: cero</li>
+        </ul>
+      </div>
+    </header>
+
+    <main>
+      <section class="wrap">
+        <h2>Qué mira, exactamente</h2>
+        <div class="grid">
+          <article>
+            <h3>Superficie expuesta</h3>
+            <p>
+              Qué servicios acepta el equipo desde fuera de sí mismo, y desde dónde se
+              alcanzan. La misma base de datos en <code>127.0.0.1</code> es rutina y en
+              <code>0.0.0.0</code> es una emergencia: esa distinción es la que ordena todo
+              el panel.
+            </p>
+          </article>
+          <article>
+            <h3>Presión sobre la autenticación</h3>
+            <p>
+              Ráfagas desde un mismo origen, barridos de nombres de usuario, campañas
+              distribuidas y —lo que de verdad importa— un acceso concedido justo después
+              de una ráfaga fallida.
+            </p>
+          </article>
+          <article>
+            <h3>Integridad de lo que decide quién entra</h3>
+            <p>
+              Huellas SHA-256 de <code>sshd_config</code>, <code>sudoers</code>,
+              <code>authorized_keys</code> y las que agregues. El agente calcula huellas;
+              nunca envía el contenido.
+            </p>
+          </article>
+          <article>
+            <h3>Controles de base</h3>
+            <p>
+              Firewall del host, parches de seguridad pendientes y desviación del reloj —
+              porque un servidor con la hora corrida es un servidor cuyos registros ya no
+              se pueden cruzar con nadie.
+            </p>
+          </article>
+          <article>
+            <h3>Silencio del sensor</h3>
+            <p>
+              Un agente que deja de reportar es un hallazgo, no un hueco en el gráfico. Se
+              trata como manipulación hasta que alguien demuestre que fue mantenimiento.
+            </p>
+          </article>
+          <article>
+            <h3>Recursos, con memoria</h3>
+            <p>
+              CPU saturada durante varias muestras seguidas, presión de memoria y disco
+              proyectado a horas de agotarse. Un pico aislado no es un incidente.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="wrap band">
+        <h2>Diagnóstico primero. Intervención después.</h2>
+        <p class="lede">
+          RootCause no bloquea direcciones por su cuenta, no edita configuraciones y no
+          reemplaza a tu antivirus, tu EDR ni tu firewall. Escribe el runbook —con el
+          comando exacto, si necesita privilegios y cómo se revierte— y deja la decisión
+          en manos de una persona. Un test del propio repositorio impide que un comando
+          destructivo llegue a ese runbook.
+        </p>
+      </section>
+
+      <section class="wrap">
+        <h2>Empezar</h2>
+        <pre><code># 1. genera un token
+rootcause-server token
+
+# 2. levanta el plano de control (escucha solo en 127.0.0.1)
+ROOTCAUSE_API_TOKEN="…" rootcause-server serve
+
+# 3. enrola el primer servidor
+rootcause-agent --once --api-token "…" --label role=edge</code></pre>
+        <p>
+          La consola queda en <code>http://127.0.0.1:8080</code>. Para administrar equipos
+          remotos, ponlo detrás de TLS y de una red controlada: el servidor te lo advierte
+          en su propio panel si detecta que escucha fuera de loopback.
+        </p>
+      </section>
+
+      <section class="wrap band">
+        <h2>La familia RootCause</h2>
+        <ul class="family">
+          <li><a href="https://github.com/vladimiracunadev-create/rootcause-windows-inspector">Windows Inspector</a> · forense de estación Windows</li>
+          <li><a href="https://github.com/vladimiracunadev-create/rootcause-macos-inspector">macOS Inspector</a> · forense de estación macOS</li>
+          <li><a href="https://github.com/vladimiracunadev-create/rootcause-web-inspector">Web Inspector</a> · superficie del navegador</li>
+          <li><a href="https://github.com/vladimiracunadev-create/rootcause-mobile-inspector">Mobile Inspector</a> · Android e iOS</li>
+          <li><a href="https://github.com/vladimiracunadev-create/rootcause-qr-inspector">QR Inspector</a> · seguridad de códigos QR</li>
+          <li><a href="https://github.com/vladimiracunadev-create/rootcause-bitcoin-defense">Bitcoin Defense</a> · procedencia de claves</li>
+          <li><a href="https://github.com/vladimiracunadev-create/rootcause-blockchain-security">Blockchain Security</a> · contratos y puentes</li>
+          <li><strong>Server</strong> · el servidor y la red que lo rodea</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          RootCause Server · MIT · hecho por
+          <a href="https://github.com/vladimiracunadev-create">Vladimir Acuña</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,22 +1,41 @@
+# Supply-chain policy enforced on every build by `cargo deny check`.
+#
+# The rule this file exists for: nothing enters the dependency graph from an
+# unknown registry, under an unreviewed licence, or as a yanked version — and
+# nobody finds out about it during a release.
+
+[graph]
+all-features = true
+
 [advisories]
 yanked = "deny"
 
 [licenses]
-confidence-threshold = 0.8
+confidence-threshold = 0.9
+# Every licence here has been read and is compatible with shipping a MIT binary.
 allow = [
     "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
+    # Mozilla's CA root store data, pulled in by rustls through webpki-roots.
+    "CDLA-Permissive-2.0",
     "ISC",
     "MIT",
+    "MIT-0",
     "MPL-2.0",
     "Unicode-3.0",
     "Zlib",
 ]
+# An allowance that never matched is a note for the future, not a defect.
+unused-allowed-license = "allow"
 
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# The crates of this workspace depend on each other by path; that is not the
+# unpinned third-party dependency the wildcard rule is meant to catch.
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"

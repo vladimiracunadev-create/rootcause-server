@@ -1,0 +1,12 @@
+# Todo pasa por el mantenedor. Las zonas de seguridad se listan aparte para que
+# un cambio en ellas sea visible en la revisión, no solo en el diff.
+*                                   @vladimiracunadev-create
+
+/crates/rootcause-core/src/detect/  @vladimiracunadev-create
+/crates/rootcause-core/src/runbook.rs @vladimiracunadev-create
+/crates/rootcause-server/src/auth.rs  @vladimiracunadev-create
+/crates/rootcause-server/src/defense.rs @vladimiracunadev-create
+/crates/rootcause-server/src/headers.rs @vladimiracunadev-create
+/crates/rootcause-agent/src/probe.rs  @vladimiracunadev-create
+/.github/workflows/                 @vladimiracunadev-create
+/scripts/                           @vladimiracunadev-create

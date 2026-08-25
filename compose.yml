@@ -1,0 +1,43 @@
+# Despliegue endurecido por omisión: sistema de archivos de solo lectura, sin
+# capacidades, sin poder elevar privilegios y con el puerto publicado
+# únicamente en el loopback del anfitrión. Delante va tu proxy con TLS.
+
+services:
+  rootcause-server:
+    build: .
+    image: rootcause-server:local
+    restart: unless-stopped
+    environment:
+      ROOTCAUSE_API_TOKEN: "${ROOTCAUSE_API_TOKEN:?Genera uno con: rootcause-server token}"
+      ROOTCAUSE_BIND: "0.0.0.0:8080"
+      ROOTCAUSE_DATABASE_URL: "sqlite:///var/lib/rootcause/rootcause.db"
+      ROOTCAUSE_RETENTION_DAYS: "${ROOTCAUSE_RETENTION_DAYS:-30}"
+      ROOTCAUSE_LOG: "rootcause_server=info"
+    ports:
+      # Nunca 0.0.0.0 aquí: quien tenga que llegar de fuera pasa por el proxy.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - rootcause-data:/var/lib/rootcause
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      # `bash` viene en la imagen base; /dev/tcp comprueba el escucha real
+      # sin añadir curl a una imagen que no lo necesita.
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8080"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  rootcause-data:
