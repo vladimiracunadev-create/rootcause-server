@@ -16,6 +16,13 @@ updates:
       rust-minor:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # sha2 0.11 es otra línea de la API de RustCrypto. Mientras sqlx siga en
+      # 0.10, subir la dependencia directa no elimina el duplicado y sí cambia
+      # el cálculo de huellas de integridad: se hará como decisión propia, no
+      # como actualización automática.
+      - dependency-name: sha2
+        update-types: [version-update:semver-minor, version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
@@ -37,3 +44,7 @@ updates:
       interval: monthly
     commit-message:
       prefix: "docker"
+    ignore:
+      # La etiqueta de la imagen de compilación sigue a rust-toolchain.toml a
+      # propósito: se mueve cuando se mueve la MSRV, no antes.
+      - dependency-name: rust
