@@ -1,6 +1,6 @@
 [package]
 name = "rootcause-agent"
-description = "Read-only native telemetry agent for RootCause Server"
+description = "Read-only native telemetry and security sensor for RootCause Server"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -15,8 +15,12 @@ clap.workspace = true
 reqwest.workspace = true
 rootcause-core = { path = "../rootcause-core" }
 serde_json.workspace = true
+sha2.workspace = true
 sysinfo.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
+
+[lints]
+workspace = true
