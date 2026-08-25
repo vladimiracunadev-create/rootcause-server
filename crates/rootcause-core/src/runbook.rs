@@ -2,8 +2,8 @@
 //!
 //! RootCause never executes a runbook. It writes one, marks whether it needs
 //! privileges and whether it can be undone, and leaves the decision to a human.
-//! The [`no_destructive_commands`](tests::no_destructive_commands) test enforces
-//! that promise on every build: a command that destroys data cannot reach this
+//! The `no_destructive_commands` test at the bottom of this file enforces that
+//! promise on every build: a command that destroys data cannot reach this
 //! module without failing CI.
 
 use serde::{Deserialize, Serialize};

@@ -9,6 +9,9 @@ all-features = true
 
 [advisories]
 yanked = "deny"
+# La razón completa de esta exención, y la comprobación que la respalda, están
+# en .cargo/audit.toml y en el trabajo "Dependencias y licencias" de CI.
+ignore = ["RUSTSEC-2023-0071"]
 
 [licenses]
 confidence-threshold = 0.9

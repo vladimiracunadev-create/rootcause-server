@@ -1,0 +1,17 @@
+# Exenciones de `cargo audit`, cada una con su razón y su comprobación.
+#
+# Una exención sin verificación es una excusa. La que sigue está respaldada por
+# un paso de CI que falla si la premisa deja de ser cierta.
+
+[advisories]
+ignore = [
+    # RUSTSEC-2023-0071 — ataque Marvin sobre `rsa`, sin versión corregida.
+    #
+    # `rsa` aparece en Cargo.lock porque el archivo de bloqueo es agnóstico a
+    # las features: lista todo lo que *podría* compilarse. Aquí nunca se
+    # compila. sqlx entra con `default-features = false` y solo el driver
+    # `sqlite`; `rsa` cuelga del driver de MySQL, que no se activa en ningún
+    # objetivo. `cargo tree --invert rsa` no devuelve nada, y el trabajo
+    # "Dependencias y licencias" de CI falla si algún día devuelve algo.
+    "RUSTSEC-2023-0071",
+]

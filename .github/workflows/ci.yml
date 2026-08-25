@@ -142,6 +142,16 @@ jobs:
         run: cargo deny --all-features check
       - name: Avisos de seguridad publicados
         run: cargo audit --deny warnings
+      - name: La exención de RUSTSEC-2023-0071 sigue siendo cierta
+        run: |
+          # `rsa` está en Cargo.lock porque el archivo de bloqueo es agnóstico a
+          # las features, pero no se compila en ningún objetivo. Si algún día se
+          # compila, la exención deja de ser legítima y este paso lo dice.
+          if cargo tree --all-features --target all --invert rsa 2>/dev/null | grep -q '^rsa'; then
+            echo "::error::rsa entró al grafo de compilación; revisa .cargo/audit.toml"
+            exit 1
+          fi
+          echo "rsa no se compila en ningún objetivo: la exención sigue siendo válida"
 
   msrv:
     name: Versión mínima de Rust
@@ -256,7 +266,11 @@ jobs:
         with:
           image-ref: rootcause-server:ci
           format: table
-          severity: CRITICAL,HIGH
+          # CRITICAL con corrección disponible bloquea. El informe completo, con
+          # los ALTOS y los que aún no tienen parche, lo emite la auditoría
+          # semanal: una CVE sin corrección publicada en la imagen base no puede
+          # detener un cambio que no la introdujo.
+          severity: CRITICAL
           exit-code: "1"
           ignore-unfixed: true
 
