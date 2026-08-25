@@ -72,7 +72,7 @@ ninguno de ellos ve por separado.
 
 ### Añadido — ingeniería
 
-- **247 pruebas**, incluidas 24 de integración sobre el router real y una prueba
+- **250 pruebas**, incluidas 25 de integración sobre el router real y una prueba
   de humo que levanta el servidor y el agente de verdad.
 - CI con catorce controles y un trabajo final que falla si **cualquiera** de
   ellos no llegó a ejecutarse.
@@ -99,6 +99,10 @@ ninguno de ellos ve por separado.
   estable se leía como una escalada.
 - Un contador de red que retrocede se interpreta como reinicio de interfaz y ya
   no puede parecer una exfiltración.
+- Un hallazgo ya no se cierra solo cuando la superficie que lo produjo no se
+  pudo inspeccionar en el ciclo siguiente. Cerrar un hallazgo de firewall porque
+  el agente no pudo leer el firewall es exactamente el fallo que REQ-SEC-003
+  existe para impedir.
 
 ## [0.1.0] - 2026-08-25
 

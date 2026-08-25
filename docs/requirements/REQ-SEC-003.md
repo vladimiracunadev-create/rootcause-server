@@ -35,6 +35,9 @@ seguridad no es el falso positivo: es el silencio tranquilizador.
 - La regla de silencio dice explícitamente que un apagado planificado, una
   caída de red y un agente detenido a propósito se ven idénticos desde el plano
   de control.
+- El cierre automático de un hallazgo solo se aplica a las categorías cuya
+  superficie **sí** se inspeccionó en ese ciclo: una lista vacía por falta de
+  permisos no cierra nada.
 - `scripts/guard_claims.py` falla el build si un número de la documentación deja
   de coincidir con el código.
 - `docs/CAPABILITIES.md` y `docs/DETECCION_AMENAZAS.md` incluyen una sección

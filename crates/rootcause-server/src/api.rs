@@ -35,8 +35,22 @@ use crate::{auth, error::ApiError, headers, state::AppState, storage::IncidentFi
 
 /// Samples of history handed to the detectors on every ingest.
 const HISTORY_WINDOW: i64 = 12;
-/// Categories whose findings describe a *current* state and may auto-resolve.
-const SELF_HEALING: &[Category] = &[Category::Exposure, Category::Hygiene];
+/// Decide which categories may close on their own for this cycle.
+///
+/// A finding may auto-resolve only when the surface that produced it was
+/// actually inspected. Closing a firewall finding because the agent could not
+/// read the firewall would be exactly the failure REQ-SEC-003 exists to
+/// prevent: reporting a zero where nobody looked.
+fn self_healing_categories(security: &SecuritySignals) -> Vec<Category> {
+    let mut categories = Vec::new();
+    if !security.has_gap("listeners") {
+        categories.push(Category::Exposure);
+    }
+    if !security.has_gap("firewall") && !security.has_gap("security-updates") {
+        categories.push(Category::Hygiene);
+    }
+    categories
+}
 
 pub fn router(state: AppState) -> Router {
     let max_body = state.runtime.max_body_bytes;
@@ -297,13 +311,16 @@ async fn ingest_telemetry(
         incidents_touched += 1;
     }
 
-    // Only meaningful once the agent reports the surface those rules read.
-    if envelope.security.is_some() {
-        state
-            .database
-            .auto_resolve(agent_id, SELF_HEALING, &fingerprints)
-            .await
-            .map_err(ApiError::internal)?;
+    // Only meaningful for the surfaces this cycle actually managed to inspect.
+    if let Some(security) = &envelope.security {
+        let categories = self_healing_categories(security);
+        if !categories.is_empty() {
+            state
+                .database
+                .auto_resolve(agent_id, &categories, &fingerprints)
+                .await
+                .map_err(ApiError::internal)?;
+        }
     }
     if let Some(security) = &envelope.security {
         state
@@ -875,7 +892,7 @@ mod tests {
 
     use rootcause_core::{
         models::{AssetStatus, Platform},
-        security::{ListeningSocket, Protocol},
+        security::{CollectionGap, ListeningSocket, Protocol},
     };
 
     use super::*;
@@ -924,6 +941,33 @@ mod tests {
             asset.labels.insert(format!("k{index}"), "v".to_owned());
         }
         assert!(validate_asset(&asset).is_err());
+    }
+
+    #[test]
+    fn a_surface_that_could_not_be_inspected_never_closes_its_findings() {
+        let blind = SecuritySignals {
+            collection_gaps: vec![CollectionGap::new("firewall", "no se encontró ufw")],
+            ..SecuritySignals::default()
+        };
+        // The exposure surface was read, so it may close; hygiene was not.
+        assert_eq!(self_healing_categories(&blind), vec![Category::Exposure]);
+
+        let dark = SecuritySignals {
+            collection_gaps: vec![
+                CollectionGap::new("listeners", "sin permiso"),
+                CollectionGap::new("security-updates", "sin gestor conocido"),
+            ],
+            ..SecuritySignals::default()
+        };
+        assert!(self_healing_categories(&dark).is_empty());
+    }
+
+    #[test]
+    fn a_fully_inspected_cycle_may_close_both_state_categories() {
+        assert_eq!(
+            self_healing_categories(&SecuritySignals::default()),
+            vec![Category::Exposure, Category::Hygiene]
+        );
     }
 
     #[test]

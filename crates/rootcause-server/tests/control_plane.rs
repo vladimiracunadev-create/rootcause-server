@@ -296,6 +296,37 @@ async fn a_closed_port_resolves_its_own_incident_on_the_next_cycle() {
 }
 
 #[tokio::test]
+async fn a_finding_stays_open_when_its_surface_could_not_be_inspected() {
+    let app = app().await;
+    let exposed = SecuritySignals {
+        listeners: vec![ListeningSocket::new(Protocol::Tcp, "0.0.0.0", 5432)],
+        ..SecuritySignals::default()
+    };
+    ingest(&app, Some(exposed)).await;
+
+    // Next cycle the agent could not read the socket table. An empty list is
+    // not the same fact as "the port was closed", and the console must not be
+    // allowed to say it was.
+    let blind = SecuritySignals {
+        collection_gaps: vec![rootcause_core::security::CollectionGap::new(
+            "listeners",
+            "el agente no pudo leer la tabla de sockets",
+        )],
+        ..SecuritySignals::default()
+    };
+    ingest(&app, Some(blind)).await;
+
+    let response =
+        app.oneshot(authorized("GET", "/api/v1/incidents?status=open", None)).await.unwrap();
+    let incidents = json_body(response).await;
+    assert_eq!(
+        incidents.as_array().unwrap().len(),
+        1,
+        "una superficie no inspeccionada no puede cerrar un hallazgo"
+    );
+}
+
+#[tokio::test]
 async fn a_brute_force_burst_reaches_the_threat_report() {
     let app = app().await;
     let security = SecuritySignals {
