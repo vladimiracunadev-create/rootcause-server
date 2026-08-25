@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.rootcause.server</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/sh</string>
+      <string>-c</string>
+      <string>set -a; . /opt/rootcause/etc/server.env; exec /opt/rootcause/bin/rootcause-server serve</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/opt/rootcause/data</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+      <key>SuccessfulExit</key>
+      <false/>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/opt/rootcause/log/server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/opt/rootcause/log/server-error.log</string>
+  </dict>
+</plist>

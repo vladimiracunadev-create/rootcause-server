@@ -1,0 +1,22 @@
+[package]
+name = "rootcause-agent"
+description = "Read-only native telemetry agent for RootCause Server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+reqwest.workspace = true
+rootcause-core = { path = "../rootcause-core" }
+serde_json.workspace = true
+sysinfo.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"
+    >
+    <meta name="color-scheme" content="dark">
+    <title>RootCause Server</title>
+    <link rel="icon" href="/rootcause.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="/rootcause.svg" alt="">
+          <div>
+            <strong>RootCause</strong>
+            <span>Server</span>
+          </div>
+        </div>
+
+        <nav aria-label="Navegación principal">
+          <button class="nav-item active" data-view="overview">Resumen</button>
+          <button class="nav-item" data-view="topology">Topología</button>
+          <button class="nav-item" data-view="assets">Activos</button>
+          <button class="nav-item" data-view="incidents">Incidentes</button>
+          <button class="nav-item" data-view="system">Sistema</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="status-dot" id="connection-dot"></span>
+          <span id="connection-text">Sin conectar</span>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">CENTRO DE CONTROL</p>
+            <h1 id="view-title">Resumen</h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="last-update" id="last-update">Esperando datos</span>
+            <button class="secondary" id="refresh-button">Actualizar</button>
+            <button class="secondary" id="token-button">Token</button>
+          </div>
+        </header>
+
+        <div class="notice" id="error-banner" hidden></div>
+
+        <section class="view active" id="view-overview">
+          <div class="metrics-grid">
+            <article class="metric-card">
+              <span>Activos registrados</span>
+              <strong id="metric-assets">—</strong>
+              <small id="metric-assets-detail">— en línea</small>
+            </article>
+            <article class="metric-card">
+              <span>Incidentes abiertos</span>
+              <strong id="metric-incidents">—</strong>
+              <small>Requieren evaluación</small>
+            </article>
+            <article class="metric-card danger-card">
+              <span>Riesgo crítico</span>
+              <strong id="metric-critical">—</strong>
+              <small>Incidentes críticos</small>
+            </article>
+            <article class="metric-card">
+              <span>Disponibilidad</span>
+              <strong id="metric-availability">—</strong>
+              <small>Agentes visibles</small>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <article class="panel topology-preview">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">MAPA VIVO</p>
+                  <h2>Topología de activos</h2>
+                </div>
+                <button class="text-button" data-open-view="topology">Ver completa</button>
+              </div>
+              <svg id="overview-topology" role="img" aria-label="Topología de RootCause"></svg>
+              <p class="empty-message" id="overview-empty" hidden>
+                Ejecuta un agente para incorporar el primer equipo.
+              </p>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">PRIORIDAD</p>
+                  <h2>Incidentes recientes</h2>
+                </div>
+              </div>
+              <div class="incident-list" id="recent-incidents"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="view-topology">
+          <article class="panel topology-full">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">ROOTCAUSE TOPOLOGY</p>
+                <h2>Servidor, plataformas y endpoints</h2>
+              </div>
+              <div class="legend" aria-label="Leyenda">
+                <span><i class="legend-dot online"></i>En línea</span>
+                <span><i class="legend-dot warning"></i>Riesgo</span>
+                <span><i class="legend-dot offline"></i>Fuera de línea</span>
+              </div>
+            </div>
+            <svg id="full-topology" role="img" aria-label="Topología completa de RootCause"></svg>
+            <p class="empty-message" id="topology-empty" hidden>
+              Aún no existen endpoints registrados.
+            </p>
+          </article>
+        </section>
+
+        <section class="view" id="view-assets">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">INVENTARIO</p>
+                <h2>Activos administrados</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Equipo</th>
+                    <th>Plataforma</th>
+                    <th>Estado</th>
+                    <th>CPU</th>
+                    <th>Memoria</th>
+                    <th>Disco</th>
+                    <th>Última señal</th>
+                  </tr>
+                </thead>
+                <tbody id="assets-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="view" id="view-incidents">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">CAUSA RAÍZ</p>
+                <h2>Incidentes y evidencia</h2>
+              </div>
+            </div>
+            <div class="incident-list detailed" id="all-incidents"></div>
+          </article>
+        </section>
+
+        <section class="view" id="view-system">
+          <div class="system-grid">
+            <article class="panel">
+              <p class="eyebrow">SERVICIO</p>
+              <h2>RootCause Server</h2>
+              <dl>
+                <div><dt>Versión</dt><dd id="system-version">—</dd></div>
+                <div><dt>Protocolo</dt><dd id="system-protocol">—</dd></div>
+                <div><dt>Tiempo activo</dt><dd id="system-uptime">—</dd></div>
+              </dl>
+            </article>
+            <article class="panel boundary-panel">
+              <p class="eyebrow">LÍMITE DE SEGURIDAD</p>
+              <h2>Respuesta guiada</h2>
+              <p>
+                Esta versión observa, correlaciona y recomienda. No ejecuta acciones
+                destructivas ni reemplaza antivirus, EDR o firewall.
+              </p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="token-dialog">
+      <form method="dialog" id="token-form">
+        <p class="eyebrow">AUTENTICACIÓN</p>
+        <h2>Conectar con RootCause</h2>
+        <p>El token permanece solamente en la sesión actual del navegador.</p>
+        <label for="token-input">Token de API</label>
+        <input id="token-input" type="password" autocomplete="off" minlength="32">
+        <div class="dialog-actions">
+          <button value="cancel" class="secondary">Cancelar</button>
+          <button value="default" id="save-token">Conectar</button>
+        </div>
+        <button value="local" class="text-button local-button" id="local-mode">
+          Probar modo local sin token
+        </button>
+      </form>
+    </dialog>
+  </body>
+</html>

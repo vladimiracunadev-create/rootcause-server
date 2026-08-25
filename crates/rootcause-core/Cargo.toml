@@ -1,0 +1,14 @@
+[package]
+name = "rootcause-core"
+description = "Shared domain model and deterministic root-cause rules for RootCause Server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+uuid.workspace = true

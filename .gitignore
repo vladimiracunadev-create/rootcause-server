@@ -1,0 +1,12 @@
+/target/
+/.idea/
+/.vscode/
+*.db
+*.db-shm
+*.db-wal
+*.log
+.DS_Store
+Thumbs.db
+.env
+/dist/
+/artifacts/

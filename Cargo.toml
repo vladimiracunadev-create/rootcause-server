@@ -1,0 +1,40 @@
+[workspace]
+members = [
+    "crates/rootcause-agent",
+    "crates/rootcause-core",
+    "crates/rootcause-server",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+authors = ["Vladimir Acuna"]
+license = "MIT"
+repository = "https://github.com/vladimiracunadev-create/rootcause-server"
+
+[workspace.dependencies]
+anyhow = "1.0.99"
+axum = { version = "0.8.9", features = ["http1", "json", "tokio"] }
+chrono = { version = "0.4.41", features = ["clock", "serde"] }
+clap = { version = "4.5.46", features = ["derive", "env"] }
+mime_guess = "2.0.5"
+reqwest = { version = "0.12.23", default-features = false, features = ["http2", "json", "rustls-tls"] }
+rust-embed = "8.7.2"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
+sqlx = { version = "0.8.6", default-features = false, features = ["chrono", "json", "macros", "migrate", "runtime-tokio-rustls", "sqlite", "uuid"] }
+subtle = "2.6.1"
+sysinfo = { version = "0.39.6", default-features = false, features = ["disk", "network", "system"] }
+tokio = { version = "1.47.1", features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tower-http = { version = "0.7.0", features = ["compression-gzip", "cors", "limit", "request-id", "trace"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "fmt", "json"] }
+uuid = { version = "1.18.0", features = ["serde", "v4", "v5"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

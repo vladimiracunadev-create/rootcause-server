@@ -1,0 +1,27 @@
+[Unit]
+Description=RootCause Server control plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rootcause
+Group=rootcause
+EnvironmentFile=/etc/rootcause/server.env
+WorkingDirectory=/var/lib/rootcause
+ExecStart=/usr/local/bin/rootcause-server serve
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/rootcause
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
