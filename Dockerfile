@@ -4,7 +4,7 @@
 # que no hay directorio de recursos que montar mal ni servidor de archivos que
 # endurecer.
 
-FROM rust:1.95-bookworm AS builder
+FROM rust:1.97-bookworm AS builder
 
 WORKDIR /build
 
