@@ -3,128 +3,244 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"
-    >
     <meta name="color-scheme" content="dark">
-    <title>RootCause Server</title>
+    <meta name="referrer" content="no-referrer">
+    <meta name="description" content="Consola local de RootCause Server: postura, superficie expuesta, amenazas e incidentes con evidencia.">
+    <title>RootCause Server · Centro de defensa</title>
     <link rel="icon" href="/rootcause.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/styles.css">
     <script src="/app.js" defer></script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Saltar al contenido</a>
+
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <img src="/rootcause.svg" alt="">
-          <div>
+          <img src="/rootcause.svg" alt="" width="40" height="40">
+          <div class="brand-text">
             <strong>RootCause</strong>
             <span>Server</span>
           </div>
         </div>
 
         <nav aria-label="Navegación principal">
-          <button class="nav-item active" data-view="overview">Resumen</button>
-          <button class="nav-item" data-view="topology">Topología</button>
-          <button class="nav-item" data-view="assets">Activos</button>
-          <button class="nav-item" data-view="incidents">Incidentes</button>
-          <button class="nav-item" data-view="system">Sistema</button>
+          <button type="button" class="nav-item active" data-view="panel" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">◈</span>Panel de defensa
+          </button>
+          <button type="button" class="nav-item" data-view="superficie">
+            <span class="nav-icon" aria-hidden="true">▤</span>Superficie expuesta
+            <span class="nav-badge" id="badge-exposure" hidden></span>
+          </button>
+          <button type="button" class="nav-item" data-view="amenazas">
+            <span class="nav-icon" aria-hidden="true">◤</span>Amenazas
+            <span class="nav-badge" id="badge-threats" hidden></span>
+          </button>
+          <button type="button" class="nav-item" data-view="incidentes">
+            <span class="nav-icon" aria-hidden="true">◉</span>Incidentes
+            <span class="nav-badge" id="badge-incidents" hidden></span>
+          </button>
+          <button type="button" class="nav-item" data-view="activos">
+            <span class="nav-icon" aria-hidden="true">▣</span>Activos
+          </button>
+          <button type="button" class="nav-item" data-view="topologia">
+            <span class="nav-icon" aria-hidden="true">⬡</span>Topología
+          </button>
+          <button type="button" class="nav-item" data-view="reglas">
+            <span class="nav-icon" aria-hidden="true">☰</span>Qué detecta
+          </button>
+          <button type="button" class="nav-item" data-view="sistema">
+            <span class="nav-icon" aria-hidden="true">⚙</span>Sistema
+          </button>
         </nav>
 
         <div class="sidebar-footer">
-          <span class="status-dot" id="connection-dot"></span>
+          <span class="status-dot" id="connection-dot" aria-hidden="true"></span>
           <span id="connection-text">Sin conectar</span>
         </div>
       </aside>
 
-      <main>
+      <main id="main-content">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">CENTRO DE CONTROL</p>
-            <h1 id="view-title">Resumen</h1>
+          <div class="topbar-title">
+            <p class="eyebrow">CENTRO DE DEFENSA</p>
+            <h1 id="view-title">Panel de defensa</h1>
           </div>
           <div class="topbar-actions">
             <span class="last-update" id="last-update">Esperando datos</span>
-            <button class="secondary" id="refresh-button">Actualizar</button>
-            <button class="secondary" id="token-button">Token</button>
+            <button type="button" class="secondary" id="refresh-button">Actualizar</button>
+            <button type="button" class="secondary" id="token-button">Token</button>
           </div>
         </header>
 
-        <div class="notice" id="error-banner" hidden></div>
+        <div class="notice error" id="error-banner" role="alert" hidden></div>
+        <div class="notice warning" id="hardening-banner" role="status" hidden></div>
 
-        <section class="view active" id="view-overview">
-          <div class="metrics-grid">
-            <article class="metric-card">
-              <span>Activos registrados</span>
-              <strong id="metric-assets">—</strong>
-              <small id="metric-assets-detail">— en línea</small>
+        <!-- ------------------------------------------------------- panel -->
+        <section class="view active" id="view-panel" aria-labelledby="view-title">
+          <div class="panel-grid">
+            <article class="panel posture-panel">
+              <p class="eyebrow">POSTURA DE LA FLOTA</p>
+              <div class="posture-body">
+                <svg id="posture-gauge" viewBox="0 0 180 180" role="img"
+                     aria-label="Puntuación de postura de la flota"></svg>
+                <div class="posture-detail">
+                  <h2 id="posture-headline">Sin datos</h2>
+                  <p id="posture-caption">
+                    La puntuación baja con cada hallazgo abierto y está limitada por el peor de
+                    ellos: un solo crítico no se diluye entre las demás dimensiones.
+                  </p>
+                  <ul class="posture-gaps" id="posture-gaps"></ul>
+                </div>
+              </div>
+              <div class="dimension-list" id="posture-dimensions"></div>
             </article>
-            <article class="metric-card">
-              <span>Incidentes abiertos</span>
-              <strong id="metric-incidents">—</strong>
-              <small>Requieren evaluación</small>
-            </article>
-            <article class="metric-card danger-card">
-              <span>Riesgo crítico</span>
-              <strong id="metric-critical">—</strong>
-              <small>Incidentes críticos</small>
-            </article>
-            <article class="metric-card">
-              <span>Disponibilidad</span>
-              <strong id="metric-availability">—</strong>
-              <small>Agentes visibles</small>
-            </article>
+
+            <div class="metrics-grid" id="metrics-grid"></div>
           </div>
 
           <div class="content-grid">
-            <article class="panel topology-preview">
+            <article class="panel">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">MAPA VIVO</p>
-                  <h2>Topología de activos</h2>
+                  <p class="eyebrow">PRIORIDAD</p>
+                  <h2>Lo que hay que mirar primero</h2>
                 </div>
-                <button class="text-button" data-open-view="topology">Ver completa</button>
+                <button type="button" class="text-button" data-open-view="incidentes">
+                  Ver todos
+                </button>
               </div>
-              <svg id="overview-topology" role="img" aria-label="Topología de RootCause"></svg>
-              <p class="empty-message" id="overview-empty" hidden>
-                Ejecuta un agente para incorporar el primer equipo.
-              </p>
+              <div class="incident-list" id="recent-incidents"></div>
             </article>
 
             <article class="panel">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">PRIORIDAD</p>
-                  <h2>Incidentes recientes</h2>
+                  <p class="eyebrow">ORÍGENES</p>
+                  <h2>Quién está tocando la puerta</h2>
                 </div>
+                <button type="button" class="text-button" data-open-view="amenazas">
+                  Ver amenazas
+                </button>
               </div>
-              <div class="incident-list" id="recent-incidents"></div>
+              <div class="source-list" id="top-sources"></div>
             </article>
           </div>
         </section>
 
-        <section class="view" id="view-topology">
-          <article class="panel topology-full">
+        <!-- -------------------------------------------------- superficie -->
+        <section class="view" id="view-superficie">
+          <article class="panel">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">ROOTCAUSE TOPOLOGY</p>
-                <h2>Servidor, plataformas y endpoints</h2>
+                <p class="eyebrow">LO QUE SE ALCANZA DESDE FUERA</p>
+                <h2>Superficie expuesta</h2>
               </div>
-              <div class="legend" aria-label="Leyenda">
-                <span><i class="legend-dot online"></i>En línea</span>
-                <span><i class="legend-dot warning"></i>Riesgo</span>
-                <span><i class="legend-dot offline"></i>Fuera de línea</span>
+              <div class="filters">
+                <label class="visually-hidden" for="exposure-search">Filtrar superficie</label>
+                <input type="search" id="exposure-search" placeholder="Equipo, servicio o puerto">
               </div>
             </div>
-            <svg id="full-topology" role="img" aria-label="Topología completa de RootCause"></svg>
-            <p class="empty-message" id="topology-empty" hidden>
-              Aún no existen endpoints registrados.
-            </p>
+            <div class="stat-strip" id="exposure-stats"></div>
+            <div class="table-wrap">
+              <table>
+                <caption class="visually-hidden">Servicios alcanzables fuera de su host</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Riesgo</th>
+                    <th scope="col">Equipo</th>
+                    <th scope="col">Servicio</th>
+                    <th scope="col">Puerto</th>
+                    <th scope="col">Enlace</th>
+                    <th scope="col">Alcance</th>
+                    <th scope="col">Proceso</th>
+                  </tr>
+                </thead>
+                <tbody id="exposure-body"></tbody>
+              </table>
+            </div>
+            <p class="empty-message" id="exposure-note" hidden></p>
           </article>
         </section>
 
-        <section class="view" id="view-assets">
+        <!-- ----------------------------------------------------- amenazas -->
+        <section class="view" id="view-amenazas">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">PRESIÓN SOBRE LA AUTENTICACIÓN</p>
+                <h2>Orígenes que intentan entrar</h2>
+              </div>
+            </div>
+            <div class="stat-strip" id="threat-stats"></div>
+            <div class="table-wrap">
+              <table>
+                <caption class="visually-hidden">Direcciones con intentos de autenticación</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Riesgo</th>
+                    <th scope="col">Origen</th>
+                    <th scope="col">Fallidos</th>
+                    <th scope="col">Concedidos</th>
+                    <th scope="col">Servicios</th>
+                    <th scope="col">Usuarios probados</th>
+                    <th scope="col">Equipos</th>
+                    <th scope="col">Último intento</th>
+                  </tr>
+                </thead>
+                <tbody id="threat-body"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">PERÍMETRO PROPIO</p>
+                <h2>Lo que este servidor rechazó</h2>
+              </div>
+            </div>
+            <p class="panel-note">
+              RootCause también es un objetivo: guarda el token que llega a cada agente y la
+              evidencia de cada incidente. Esto es lo que su propio perímetro detuvo.
+            </p>
+            <div class="stat-strip" id="defense-stats"></div>
+          </article>
+        </section>
+
+        <!-- --------------------------------------------------- incidentes -->
+        <section class="view" id="view-incidentes">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">CAUSA RAÍZ Y EVIDENCIA</p>
+                <h2>Incidentes</h2>
+              </div>
+              <div class="filters">
+                <label class="visually-hidden" for="incident-category">Categoría</label>
+                <select id="incident-category">
+                  <option value="">Todas las categorías</option>
+                  <option value="intrusion">Intrusión</option>
+                  <option value="exposure">Superficie expuesta</option>
+                  <option value="integrity">Integridad</option>
+                  <option value="availability">Disponibilidad</option>
+                  <option value="hygiene">Higiene</option>
+                  <option value="resource">Recursos</option>
+                </select>
+                <label class="visually-hidden" for="incident-status">Estado</label>
+                <select id="incident-status">
+                  <option value="open">Abiertos y reconocidos</option>
+                  <option value="">Todos</option>
+                  <option value="resolved">Resueltos</option>
+                </select>
+              </div>
+            </div>
+            <div class="incident-list detailed" id="all-incidents"></div>
+          </article>
+        </section>
+
+        <!-- ------------------------------------------------------ activos -->
+        <section class="view" id="view-activos">
           <article class="panel">
             <div class="panel-heading">
               <div>
@@ -134,15 +250,19 @@
             </div>
             <div class="table-wrap">
               <table>
+                <caption class="visually-hidden">Equipos que reportan a este servidor</caption>
                 <thead>
                   <tr>
-                    <th>Equipo</th>
-                    <th>Plataforma</th>
-                    <th>Estado</th>
-                    <th>CPU</th>
-                    <th>Memoria</th>
-                    <th>Disco</th>
-                    <th>Última señal</th>
+                    <th scope="col">Equipo</th>
+                    <th scope="col">Rol</th>
+                    <th scope="col">Plataforma</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Postura</th>
+                    <th scope="col">Expuestos</th>
+                    <th scope="col">CPU</th>
+                    <th scope="col">Memoria</th>
+                    <th scope="col">Disco</th>
+                    <th scope="col">Última señal</th>
                   </tr>
                 </thead>
                 <tbody id="assets-body"></tbody>
@@ -151,55 +271,141 @@
           </article>
         </section>
 
-        <section class="view" id="view-incidents">
-          <article class="panel">
+        <!-- ---------------------------------------------------- topología -->
+        <section class="view" id="view-topologia">
+          <article class="panel topology-full">
             <div class="panel-heading">
               <div>
-                <p class="eyebrow">CAUSA RAÍZ</p>
-                <h2>Incidentes y evidencia</h2>
+                <p class="eyebrow">ZONAS Y ALCANCE</p>
+                <h2>Qué llega desde Internet y qué no</h2>
+              </div>
+              <div class="legend" aria-label="Leyenda de la topología">
+                <span><i class="legend-dot online"></i>En línea</span>
+                <span><i class="legend-dot warning"></i>Con riesgo</span>
+                <span><i class="legend-dot critical"></i>Crítico</span>
+                <span><i class="legend-dot offline"></i>Sin señal</span>
               </div>
             </div>
-            <div class="incident-list detailed" id="all-incidents"></div>
+            <svg id="full-topology" role="img"
+                 aria-label="Mapa de zonas: Internet, superficie expuesta, red interna y servidor"></svg>
+            <p class="empty-message" id="topology-empty" hidden>
+              Todavía no hay equipos registrados. Ejecuta un agente para dibujar el mapa.
+            </p>
           </article>
         </section>
 
-        <section class="view" id="view-system">
+        <!-- ------------------------------------------------------- reglas -->
+        <section class="view" id="view-reglas">
+          <article class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">HONESTIDAD</p>
+                <h2>Qué detecta esta versión, regla por regla</h2>
+              </div>
+            </div>
+            <p class="panel-note">
+              Este catálogo lo publica el propio binario. Si una regla no aparece aquí, no está
+              implementada, por mucho que se prometa en otra parte.
+            </p>
+            <div class="table-wrap">
+              <table>
+                <caption class="visually-hidden">Catálogo de reglas de detección</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">Regla</th>
+                    <th scope="col">Pregunta que responde</th>
+                    <th scope="col">Severidad máxima</th>
+                    <th scope="col">ATT&amp;CK</th>
+                  </tr>
+                </thead>
+                <tbody id="rules-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <!-- ------------------------------------------------------ sistema -->
+        <section class="view" id="view-sistema">
           <div class="system-grid">
             <article class="panel">
               <p class="eyebrow">SERVICIO</p>
               <h2>RootCause Server</h2>
-              <dl>
-                <div><dt>Versión</dt><dd id="system-version">—</dd></div>
-                <div><dt>Protocolo</dt><dd id="system-protocol">—</dd></div>
-                <div><dt>Tiempo activo</dt><dd id="system-uptime">—</dd></div>
-              </dl>
+              <dl class="definition-list" id="system-service"></dl>
             </article>
+
+            <article class="panel">
+              <p class="eyebrow">ENDURECIMIENTO</p>
+              <h2>Cómo está configurada esta instancia</h2>
+              <dl class="definition-list" id="system-hardening"></dl>
+            </article>
+
             <article class="panel boundary-panel">
-              <p class="eyebrow">LÍMITE DE SEGURIDAD</p>
-              <h2>Respuesta guiada</h2>
+              <p class="eyebrow">LÍMITE DEL PRODUCTO</p>
+              <h2>Diagnóstico primero, intervención después</h2>
               <p>
-                Esta versión observa, correlaciona y recomienda. No ejecuta acciones
-                destructivas ni reemplaza antivirus, EDR o firewall.
+                RootCause observa, correlaciona y explica. No bloquea direcciones por su cuenta,
+                no edita configuraciones y no reemplaza antivirus, EDR ni firewall: escribe el
+                runbook y deja la decisión en manos de una persona.
               </p>
+              <div class="panel-actions">
+                <button type="button" class="secondary" id="export-button">
+                  Descargar evidencia (NDJSON)
+                </button>
+              </div>
+            </article>
+
+            <article class="panel wide">
+              <p class="eyebrow">AUDITORÍA</p>
+              <h2>Quién cambió qué</h2>
+              <div class="table-wrap">
+                <table>
+                  <caption class="visually-hidden">Registro de auditoría</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Momento</th>
+                      <th scope="col">Actor</th>
+                      <th scope="col">Acción</th>
+                      <th scope="col">Objetivo</th>
+                    </tr>
+                  </thead>
+                  <tbody id="audit-body"></tbody>
+                </table>
+              </div>
             </article>
           </div>
         </section>
       </main>
     </div>
 
-    <dialog id="token-dialog">
+    <dialog id="incident-dialog" class="drawer" aria-labelledby="incident-dialog-title">
+      <div class="drawer-header">
+        <div>
+          <p class="eyebrow" id="incident-dialog-eyebrow">INCIDENTE</p>
+          <h2 id="incident-dialog-title">Detalle</h2>
+        </div>
+        <button type="button" class="icon-button" id="incident-close" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="drawer-body" id="incident-dialog-body"></div>
+    </dialog>
+
+    <dialog id="token-dialog" aria-labelledby="token-dialog-title">
       <form method="dialog" id="token-form">
         <p class="eyebrow">AUTENTICACIÓN</p>
-        <h2>Conectar con RootCause</h2>
-        <p>El token permanece solamente en la sesión actual del navegador.</p>
+        <h2 id="token-dialog-title">Conectar con RootCause</h2>
+        <p>
+          El token queda solo en la sesión de este navegador. Se borra al cerrar la pestaña y
+          nunca se envía a ningún destino distinto de este servidor.
+        </p>
         <label for="token-input">Token de API</label>
-        <input id="token-input" type="password" autocomplete="off" minlength="32">
+        <input id="token-input" type="password" autocomplete="off" minlength="32"
+               spellcheck="false">
         <div class="dialog-actions">
-          <button value="cancel" class="secondary">Cancelar</button>
-          <button value="default" id="save-token">Conectar</button>
+          <button type="submit" value="cancel" class="secondary">Cancelar</button>
+          <button type="submit" value="default" id="save-token">Conectar</button>
         </div>
-        <button value="local" class="text-button local-button" id="local-mode">
-          Probar modo local sin token
+        <button type="button" class="text-button local-button" id="local-mode">
+          Probar en modo local sin token
         </button>
       </form>
     </dialog>

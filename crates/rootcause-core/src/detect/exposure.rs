@@ -231,6 +231,19 @@ mod tests {
     }
 
     #[test]
+    fn dual_stack_bindings_of_one_service_are_a_single_finding() {
+        let findings = analyze(
+            vec![
+                ListeningSocket::new(Protocol::Tcp, "0.0.0.0", 5432),
+                ListeningSocket::new(Protocol::Tcp, "::", 5432),
+            ],
+            "internal",
+        );
+        assert_eq!(findings.len(), 1, "one service is one finding, not one per address family");
+        assert_eq!(findings[0].evidence.len(), 2, "both bindings stay in the evidence");
+    }
+
+    #[test]
     fn a_database_server_exposing_anything_public_is_critical() {
         let findings =
             analyze(vec![ListeningSocket::new(Protocol::Tcp, "0.0.0.0", 8080)], "database");

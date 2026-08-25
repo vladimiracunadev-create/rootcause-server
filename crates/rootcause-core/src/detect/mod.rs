@@ -267,6 +267,8 @@ impl DetectionEngine {
         integrity::detect(&self.policy, input, &mut findings);
         hygiene::detect(&self.policy, input, &mut findings);
         resource::detect(&self.policy, input, &mut findings);
+
+        let mut findings = merge_by_fingerprint(findings);
         findings.sort_by(|left, right| {
             right
                 .severity
@@ -276,6 +278,37 @@ impl DetectionEngine {
         });
         findings
     }
+}
+
+/// Collapse candidates that describe the same condition in one cycle.
+///
+/// A service bound to both `0.0.0.0` and `::` is one finding, not two: without
+/// this the occurrence counter would advance twice per cycle and an operator
+/// would read a stable condition as an escalating one.
+fn merge_by_fingerprint(findings: Vec<IncidentCandidate>) -> Vec<IncidentCandidate> {
+    let mut merged: BTreeMap<String, IncidentCandidate> = BTreeMap::new();
+    for candidate in findings {
+        match merged.get_mut(&candidate.fingerprint) {
+            None => {
+                merged.insert(candidate.fingerprint.clone(), candidate);
+            }
+            Some(existing) => {
+                if candidate.severity > existing.severity {
+                    let mut evidence = std::mem::take(&mut existing.evidence);
+                    *existing = candidate;
+                    evidence.append(&mut existing.evidence);
+                    existing.evidence = evidence;
+                } else {
+                    for evidence in candidate.evidence {
+                        if !existing.evidence.contains(&evidence) {
+                            existing.evidence.push(evidence);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    merged.into_values().collect()
 }
 
 /// Build the fingerprint that deduplicates a finding across cycles.
