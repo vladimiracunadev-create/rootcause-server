@@ -1,0 +1,20 @@
+# Configuración de gitleaks. Se extienden las reglas por omisión; lo único que
+# se permite son cadenas que están en el repositorio *precisamente* para no ser
+# un secreto.
+#
+# La lista es deliberadamente estrecha: permitir un archivo entero convertiría
+# el día en que alguien pegue una credencial de verdad en un día tranquilo.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Marcadores de posición documentados, nunca credenciales reales"
+regexes = [
+    # .env.example: el valor dice, literalmente, que hay que reemplazarlo.
+    '''reemplaza-por-al-menos-32-caracteres-aleatorios''',
+    # README y documentación: el token va aquí, no está aquí.
+    '''pega-aqui-el-token''',
+    # Pruebas de integración: token fijo para que el resultado sea reproducible.
+    '''0123456789abcdef0123456789abcdef''',
+]

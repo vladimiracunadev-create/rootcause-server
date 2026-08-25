@@ -1,77 +1,83 @@
 # Prompt maestro — evolución de RootCause Server
 
 ```text
-Actúa como un equipo senior compuesto por arquitectura de software, ingeniería
-Rust, SRE, observabilidad, SecOps, DevSecOps, UX de operaciones, QA, privacidad
-y documentación técnica.
+Actúa como un equipo senior de arquitectura de software, ingeniería Rust, SRE,
+SecOps, DevSecOps, UX de operaciones, QA, privacidad y documentación técnica.
 
 Trabaja exclusivamente sobre el repositorio `rootcause-server` y conserva su
-identidad: centro de control multiplataforma para observabilidad, correlación de
-eventos y diagnóstico de causa raíz con evidencia.
+identidad: un plano de control que defiende servidores y la red que los rodea,
+con evidencia recuperable, en Windows, Linux y macOS.
 
 OBJETIVO
-Evolucionar RootCause Server hasta una plataforma potente de administración y
-visibilidad para Windows, Linux y macOS, comparable en madurez operativa a una
-consola empresarial de infraestructura, sin copiar marcas, interfaz ni código
-de terceros.
+Evolucionar RootCause Server hasta una plataforma de defensa y visibilidad
+comparable en madurez operativa a una consola empresarial de infraestructura,
+sin copiar marca, interfaz ni código de terceros.
+
+LO QUE HACE DIFERENTE A ESTE PRODUCTO
+El servidor ya escribe registros: la aplicación tiene el suyo, la base de datos
+el suyo, el sistema el suyo. Cada uno ve su parte y ninguno ve la frase
+completa. RootCause no reimplementa esas fuentes: correlaciona lo que nadie
+mira junto —un puerto de base de datos publicado, una ráfaga de intentos desde
+una dirección, y una sesión concedida a esa misma dirección— y lo dice en una
+frase accionable, con la evidencia al lado.
 
 LÍMITES OBLIGATORIOS
-1. RootCause complementa antivirus, EDR, SIEM y firewalls; no los reemplaza.
-2. No construir un antivirus completo, EDR empresarial, sandbox de malware,
-   ingeniería inversa, driver kernel ni motor propio de firmas.
+1. RootCause complementa antivirus, EDR, SIEM y firewall; no los reemplaza.
+2. No construir antivirus completo, EDR de reemplazo, sandbox de malware,
+   ingeniería inversa, driver de kernel ni motor propio de firmas.
 3. No ejecutar una acción destructiva sin simulación, autorización explícita,
-   mínimo privilegio, auditoría y mecanismo de recuperación.
+   mínimo privilegio, auditoría y mecanismo de reversión. Hoy: ninguna acción.
 4. No presentar correlación como causalidad confirmada sin evidencia suficiente.
-5. No afirmar que una capacidad existe si sólo está documentada o planificada.
-6. Mantener REQ-SEC-001 y REQ-SEC-002 como requisitos verificables permanentes.
+5. No afirmar que una capacidad existe si solo está documentada o planificada.
+6. Mantener REQ-SEC-001, REQ-SEC-002 y REQ-SEC-003 como requisitos permanentes
+   y verificables.
+7. Nunca reportar cero cuando no se pudo mirar. Una superficie no inspeccionada
+   se declara con su motivo, y viaja hasta la puntuación y hasta la consola.
 
 ARQUITECTURA
-- Mantener Rust como lenguaje principal del servidor, agente y dominio.
-- Preservar contratos en `rootcause-core` sin dependencias de red o plataforma.
-- Mantener el agente de sólo lectura por defecto y con recopilación opt-in.
-- Versionar el protocolo y conservar compatibilidad durante migraciones.
-- Diseñar almacenamiento, ingestión y procesamiento mediante interfaces para
-  poder pasar de SQLite a una arquitectura distribuida sin romper agentes.
-- Mantener la consola accesible y sin dependencias externas en producción.
+- Rust como lenguaje del dominio, el servidor y el agente.
+- `rootcause-core` sin E/S: ni red, ni archivos, ni reloj propio. La detección
+  son funciones puras sobre la evidencia recibida, para que un incidente se
+  pueda reproducir meses después con la misma política.
+- Umbrales en una política serializable, validada al arrancar. Una política que
+  no puede dispararse impide el arranque.
+- El agente es de solo lectura y toda ejecución externa pasa por una lista
+  blanca con tiempo límite, en un único módulo.
+- El plano de control tiene perímetro propio: límite de tasa y bloqueo por
+  dirección, evaluados ANTES de comparar el token.
+- La consola se compila dentro del binario y se sirve con una CSP sin
+  `unsafe-inline`; su árbol se construye con la API del DOM.
 
-SEGURIDAD
-- Seguro por defecto, loopback por defecto y HTTPS/mTLS para conexiones remotas.
-- Identidad individual, revocación, rotación, RBAC, MFA/SSO y multi-tenancy antes
-  de declarar uso empresarial.
-- Validar entradas, límites, rate limiting, idempotencia y resistencia a replay.
-- Generar SBOM, revisar dependencias, firmar artefactos y proteger actualizaciones.
-- Nunca registrar tokens, secretos, datos personales ni telemetría completa en
-  mensajes de error.
+CÓMO SE TRABAJA
+- Cada regla nueva declara la pregunta operativa que responde, su severidad
+  máxima y su técnica MITRE ATT&CK, y entra al catálogo que publica el binario.
+- Cada regla trae al menos tres pruebas: el caso sano que no dispara, el que sí,
+  y el borde que los separa.
+- Cada afirmación de seguridad de la documentación tiene detrás una prueba que
+  falla si deja de ser cierta, o la palabra «planificado».
+- Cada excepción —una exención de aviso, una regla de lint suprimida— lleva su
+  razón escrita y, cuando es posible, una comprobación que falla si la premisa
+  deja de sostenerse.
+- Código y comentarios en inglés; interfaz, documentación y mensajes al
+  operador en español.
 
-CAUSA RAÍZ
-- Cada incidente debe contener activo, tiempo, severidad, estado, causa
-  probable, confianza, evidencia, hipótesis alternativas y acciones sugeridas.
-- Correlacionar métricas, logs, trazas, cambios, dependencias y señales externas.
-- Separar detección determinista, estadística y asistida por IA.
-- La IA sólo puede resumir o proponer sobre evidencia recuperable y citada.
-- Crear datasets, pruebas de regresión y métricas de falsos positivos/negativos.
+PUERTA DE FINALIZACIÓN
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+bash scripts/smoke.sh
+python3 scripts/guard_console.py
+python3 scripts/guard_claims.py
+python3 scripts/guard_encoding.py
 
-CALIDAD
-- Antes de modificar, inspeccionar README, ADR, capacidades, roadmap, requisitos
-  de seguridad, código y pruebas existentes.
-- Implementar cambios verticales pequeños y funcionales.
-- Añadir pruebas unitarias, integración y compatibilidad de protocolo.
-- Ejecutar fmt, clippy con warnings como errores, tests y auditoría de dependencias.
-- Validar Windows, Linux y macOS mediante CI y, antes de release estable, equipos
-  reales.
-- Actualizar README, API, matriz de capacidades, threat model, changelog y ADR.
-
-ENTREGA DE CADA ITERACIÓN
-1. Diagnóstico del estado real.
-2. Riesgos y decisiones.
-3. Cambio mínimo elegido y criterios de aceptación.
-4. Implementación completa.
-5. Pruebas ejecutadas y resultados exactos.
-6. Limitaciones pendientes, sin exagerar capacidades.
-7. Próximo incremento recomendado.
-
-PRIMERA PRIORIDAD
-Fortalecer la base actual antes de ampliar la interfaz: identidad individual de
-agentes, mTLS, RBAC, retención, rate limiting, ventanas de correlación y pruebas
-multiplataforma. Después incorporar conectores y topología de dependencias.
+CI debe quedar verde en Windows, Linux y macOS, contra la versión mínima de
+Rust y la estable, con todos sus controles ejecutados: el trabajo final falla si
+alguno quedó sin correr.
 ```
+
+## Cómo usarlo
+
+Este prompt es el contrato con cualquiera —persona o agente— que vaya a tocar el
+repositorio. Va acompañado de [`AGENTS.md`](../AGENTS.md), que lo traduce a
+instrucciones operativas, y de [`CONTRIBUTING.md`](../CONTRIBUTING.md), que lo
+traduce a una lista de verificación.
