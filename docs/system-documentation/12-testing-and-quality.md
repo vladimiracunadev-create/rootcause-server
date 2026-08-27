@@ -5,7 +5,7 @@
 >
 > Las cifras de este documento provienen de una ejecución real de
 > `cargo test --workspace --all-targets --locked` sobre el commit `2efedb2`,
-> el 2026-08-26. Resultado: **250 pruebas, 0 fallos**.
+> el 2026-08-26. Resultado: **253 pruebas, 0 fallos**.
 
 ## Tipos de prueba existentes
 
@@ -13,20 +13,20 @@
 |---|---|---|---|
 | **Unitarias de dominio** | Módulos `#[cfg(test)]` de `rootcause-core` | 92 | Clasificación, política, reglas, postura, runbooks |
 | **Unitarias del agente** | Módulos `#[cfg(test)]` de `rootcause-agent` | 59 | Parsers por plataforma, lista blanca, huellas, transporte |
-| **Unitarias del servidor** | Módulos `#[cfg(test)]` de `rootcause-server` (biblioteca) | 72 | Configuración, perímetro, autenticación, cabeceras, errores, almacenamiento, vigilante |
+| **Unitarias del servidor** | Módulos `#[cfg(test)]` de `rootcause-server` (biblioteca) | 75 | Configuración, perímetro, autenticación, cabeceras, errores, almacenamiento, vigilante |
 | **Unitarias del binario** | `main.rs` del servidor | 2 | Catálogo no vacío; política imprimible y recargable |
 | **Integración** | `tests/control_plane.rs` | 25 | El router completo en proceso, extremo a extremo |
 | **Humo real** | `scripts/smoke.sh` | 1 guion | Binarios reales, socket real, máquina real |
 | **Guardianes** | 3 scripts Python | 3 | Invariantes que un revisor humano olvidaría |
 
-**Total: 250 pruebas automatizadas** más un guion de humo y tres guardianes.
+**Total: 253 pruebas automatizadas** más un guion de humo y tres guardianes.
 
 ## Distribución por binario de prueba
 
 ```text
 rootcause_agent  (unittests src/main.rs)      59 pruebas
 rootcause_core   (unittests src/lib.rs)       92 pruebas
-rootcause_server (unittests src/lib.rs)       72 pruebas
+rootcause_server (unittests src/lib.rs)       75 pruebas
 rootcause_server (unittests src/main.rs)       2 pruebas
 control_plane    (tests/control_plane.rs)     25 pruebas
 ```
@@ -116,7 +116,7 @@ simple vista en cualquier volcado.
 | `probe` | La lista blanca acepta rutas absolutas y `.exe`; **rechaza lo que no está en ella** |
 | `main` | `validate_transport`, `parse_label`, `endpoint`, `stable_agent_id` |
 
-### `rootcause-server` — el plano de control (74 + 25 pruebas)
+### `rootcause-server` — el plano de control (77 + 25 pruebas)
 
 | Módulo | Cobertura |
 |---|---|
@@ -125,7 +125,7 @@ simple vista en cualquier volcado.
 | `auth` | Dirección del cliente con y sin proxy; cabecera malformada; solo `Bearer`; comparación de token contra prefijos y sufijos |
 | `headers` | La CSP no admite `unsafe-inline`, `unsafe-eval`, `http:` ni `*`; toda cabecera declarada es válida; HSTS con su duración |
 | `error` | Cada error a su estado; el cuerpo del bloqueo nombra su código; `Retry-After` nunca es cero; **un error interno no filtra la causa** |
-| `storage` | Alta y actualización de activos, incidentes, líneas base, presión, defensa, auditoría y retención |
+| `storage` | Alta y actualización de activos, incidentes, líneas base, presión, defensa, auditoría y retención; **que un agregado lea toda la tabla y no la primera página**, que el resumen puntúe igual que los incidentes que resume, y que el rastro de auditoría se pueda leer entero o paginado |
 | `watchdog` | Se levanta el silencio y se cierra al volver |
 | `ui` | Los cuatro activos están embebidos; las rutas del API no caen a la consola; una ruta desconocida sirve el cascarón |
 | `api` | `build_exposure`, `build_topology`, `render_export`, `render_metrics` |

@@ -3,6 +3,38 @@
 Todos los cambios relevantes quedan aquí. El proyecto seguirá versionado
 semántico en cuanto el API pública alcance su primera versión estable.
 
+## [Sin publicar]
+
+### Corregido
+
+- **Un agregado ya no describe solo la primera página.** `list_incidents`
+  aplicaba `LIMIT 500` y cinco rutas lo llamaban sin límite, así que la
+  puntuación de postura, las métricas de Prometheus, la topología y **el paquete
+  de evidencia** podían calcularse sobre menos incidentes de los que había, sin
+  decirlo. Es la misma clase de fallo que REQ-SEC-003 previene, en un camino que
+  el requisito no cubría.
+  - `IncidentFilter::limit` pasa a significar lo que dice: `None` es **sin
+    límite**. Solo la ruta de listado, que pinta una página para una persona,
+    fija un tope explícito.
+  - La postura y los contadores por categoría se calculan con `COUNT(*)` y
+    `GROUP BY` en SQL (`open_finding_counts`, `open_findings_by_asset`) en vez
+    de materializando incidentes: el número sale de toda la tabla y, de paso,
+    el inventario deja de clonar cada hallazgo en memoria.
+  - `GET /api/v1/export` incluye ahora **toda** la auditoría, no las primeras
+    mil entradas.
+
+### Añadido
+
+- **`scripts/backup.sh` y `scripts/backup.ps1`**: respaldo de la base de datos
+  con `.backup` de SQLite —seguro con el servidor escribiendo— que **verifica la
+  copia antes de darla por buena**: `PRAGMA integrity_check` y recuento de filas
+  de `incidents`, `audit_log` y `assets` contra el origen. Un respaldo que nadie
+  leyó de vuelta es una esperanza, no un respaldo. Incluye retención
+  configurable y las instrucciones de restauración.
+- **Documentación de sistema** en `docs/system-documentation/`: veinte
+  documentos con su versión en PDF, generados desde el Markdown con
+  `scripts/docs_pdf.py`.
+
 ## [0.2.0] - 2026-08-25
 
 El repositorio pasa de una base de observabilidad a **una plataforma de defensa

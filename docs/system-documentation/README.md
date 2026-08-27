@@ -104,7 +104,7 @@ siguen siendo la fuente autoritativa de su tema.
 | Lenguajes auxiliares | JavaScript (consola), Python (guardianes y utilidades), SQL, HTML, CSS |
 | Archivos de código analizados | 33 archivos Rust, 4 de consola, 4 scripts Python, 2 migraciones SQL |
 | Reglas de detección publicadas | 18 |
-| Anotaciones de prueba en el código | 250 (`#[test]` y `#[tokio::test]`) |
+| Anotaciones de prueba en el código | 253 (`#[test]` y `#[tokio::test]`) |
 
 ## Convenciones
 
@@ -139,7 +139,7 @@ Cada punto está desarrollado en el documento que lo menciona.
 | # | Pendiente | Dónde se detalla |
 |---|---|---|
 | 1 | El directorio `config/` existe en la copia de trabajo pero **no está en el repositorio** (git no versiona directorios vacíos) | [04](04-code-map.md), [15](15-risks-and-technical-debt.md) |
-| 2 | No hay respaldo ni restauración automatizados del archivo SQLite | [07](07-database.md), [13](13-deployment-and-operations.md) |
+| 2 | Que el respaldo se ejecute de forma programada, salga del anfitrión y **se restaure alguna vez**: el script existe, el proceso lo pone quien opera | [07](07-database.md), [13](13-deployment-and-operations.md) |
 | 3 | La firma y la atestación de procedencia de los artefactos de publicación no se pudieron verificar sin ejecutar el workflow | [13](13-deployment-and-operations.md) |
 | 4 | El comportamiento de los parsers frente a salidas de `ss` y `netstat` no cubiertas por fixtures | [12](12-testing-and-quality.md), [15](15-risks-and-technical-debt.md) |
 | 5 | El instalador de Windows (`packaging/windows/rootcause-server.iss`) no se compiló en este análisis | [13](13-deployment-and-operations.md) |

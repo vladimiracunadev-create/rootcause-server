@@ -6,7 +6,7 @@
 //! same thing twice.
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     str::FromStr,
 };
 
@@ -17,6 +17,7 @@ use rootcause_core::{
         AssetRegistration, AssetStatus, AssetView, AuditEntry, Category, Incident,
         IncidentCandidate, IncidentStatus, MetricSample, Severity, ThreatSource,
     },
+    posture::FindingCounts,
     security::{AuthEvent, AuthOutcome, SecuritySignals, WatchedFile},
 };
 use serde_json::json;
@@ -44,6 +45,12 @@ pub struct IncidentFilter {
     pub severity: Option<Severity>,
     pub category: Option<Category>,
     pub asset_id: Option<Uuid>,
+    /// Rows to return at most. `None` means **no limit**.
+    ///
+    /// The default is deliberately unbounded: a total, a score or an evidence
+    /// bundle computed over the first page of the table is precisely the kind
+    /// of number this product refuses to publish. Callers that render a page
+    /// for a human ask for a limit explicitly.
     pub limit: Option<i64>,
 }
 
@@ -570,9 +577,11 @@ impl Database {
                     ELSE 0
                 END DESC,
                 last_seen DESC
-            LIMIT ?
             "#,
         );
+        if filter.limit.is_some() {
+            sql.push_str(" LIMIT ?");
+        }
 
         let mut query = sqlx::query_as::<_, IncidentRow>(&sql);
         if let Some(status) = filter.status {
@@ -587,12 +596,69 @@ impl Database {
         if let Some(asset_id) = filter.asset_id {
             query = query.bind(asset_id.to_string());
         }
-        query = query.bind(filter.limit.unwrap_or(500).clamp(1, 5_000));
+        if let Some(limit) = filter.limit {
+            query = query.bind(limit.clamp(1, 5_000));
+        }
 
         let rows = query.fetch_all(&self.pool).await?;
         rows.into_iter()
             .map(|row| serde_json::from_str(&row.incident_json).map_err(Into::into))
             .collect()
+    }
+
+    /// Open findings of a scope, summarised by category and severity.
+    ///
+    /// Counting in SQL is what lets the posture of a whole fleet be computed
+    /// without loading every incident — and therefore without the score
+    /// silently describing only part of it. Pass `None` for the whole fleet.
+    pub async fn open_finding_counts(
+        &self,
+        asset_id: Option<Uuid>,
+    ) -> anyhow::Result<FindingCounts> {
+        let mut sql = String::from(
+            "SELECT category, severity, COUNT(*) AS total FROM incidents \
+             WHERE status != 'resolved'",
+        );
+        if asset_id.is_some() {
+            sql.push_str(" AND asset_id = ?");
+        }
+        sql.push_str(" GROUP BY category, severity");
+
+        let mut query = sqlx::query(&sql);
+        if let Some(asset_id) = asset_id {
+            query = query.bind(asset_id.to_string());
+        }
+
+        let mut findings = FindingCounts::new();
+        for row in query.fetch_all(&self.pool).await? {
+            accumulate(&mut findings, &row)?;
+        }
+        Ok(findings)
+    }
+
+    /// The same summary, grouped by asset, in a single query.
+    ///
+    /// One round trip for the whole inventory instead of one per asset, which
+    /// is what the console asks for every ten seconds.
+    pub async fn open_findings_by_asset(&self) -> anyhow::Result<HashMap<Uuid, FindingCounts>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT asset_id, category, severity, COUNT(*) AS total
+            FROM incidents
+            WHERE status != 'resolved'
+            GROUP BY asset_id, category, severity
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut grouped: HashMap<Uuid, FindingCounts> = HashMap::new();
+        for row in rows {
+            let asset_id = Uuid::parse_str(row.try_get::<String, _>("asset_id")?.as_str())
+                .context("an incident row carries an unreadable asset identifier")?;
+            accumulate(grouped.entry(asset_id).or_default(), &row)?;
+        }
+        Ok(grouped)
     }
 
     /// One incident by identifier, or `None` when it does not exist.
@@ -751,13 +817,23 @@ impl Database {
     }
 
     /// Most recent audit entries, newest first.
-    pub async fn list_audit(&self, limit: i64) -> anyhow::Result<Vec<AuditEntry>> {
-        let rows = sqlx::query(
-            "SELECT observed_at, actor, action, target, detail_json FROM audit_log ORDER BY observed_at DESC LIMIT ?",
-        )
-        .bind(limit.clamp(1, 1_000))
-        .fetch_all(&self.pool)
-        .await?;
+    ///
+    /// `None` returns the whole trail, which is what the evidence bundle needs:
+    /// an export that stops at an arbitrary row is not a record of what
+    /// happened.
+    pub async fn list_audit(&self, limit: Option<i64>) -> anyhow::Result<Vec<AuditEntry>> {
+        let mut sql = String::from(
+            "SELECT observed_at, actor, action, target, detail_json \
+             FROM audit_log ORDER BY observed_at DESC",
+        );
+        if limit.is_some() {
+            sql.push_str(" LIMIT ?");
+        }
+        let mut query = sqlx::query(&sql);
+        if let Some(limit) = limit {
+            query = query.bind(limit.clamp(1, 1_000));
+        }
+        let rows = query.fetch_all(&self.pool).await?;
         rows.into_iter()
             .map(|row| {
                 Ok(AuditEntry {
@@ -808,6 +884,23 @@ impl Database {
             .await?;
         Ok(telemetry)
     }
+}
+
+/// Fold one `GROUP BY category, severity` row into a summary.
+///
+/// A category or severity this build cannot parse is an error rather than a
+/// skipped row: undercounting in silence is the failure mode the whole change
+/// exists to remove.
+fn accumulate(findings: &mut FindingCounts, row: &sqlx::sqlite::SqliteRow) -> anyhow::Result<()> {
+    let category = row.try_get::<String, _>("category")?;
+    let severity = row.try_get::<String, _>("severity")?;
+    let total = row.try_get::<i64, _>("total")?;
+    let category = Category::parse(&category)
+        .ok_or_else(|| anyhow!("unknown incident category in storage: {category}"))?;
+    let severity = Severity::parse(&severity)
+        .ok_or_else(|| anyhow!("unknown incident severity in storage: {severity}"))?;
+    findings.add(category, severity, u32::try_from(total).unwrap_or(u32::MAX));
+    Ok(())
 }
 
 fn threat_severity(failures: u32, successes: u32) -> Severity {
@@ -947,6 +1040,106 @@ mod tests {
         assert_eq!(assets[0].security.as_ref().unwrap().listeners.len(), 2);
     }
 
+    /// A finding with a caller-chosen fingerprint, so a test can make many.
+    fn candidate(
+        asset_id: Uuid,
+        fingerprint: &str,
+        category: Category,
+        severity: Severity,
+    ) -> IncidentCandidate {
+        IncidentCandidate {
+            fingerprint: fingerprint.to_owned(),
+            asset_id,
+            title: format!("hallazgo {fingerprint}"),
+            summary: "sintetico".to_owned(),
+            severity,
+            category,
+            root_cause: "sintetico".to_owned(),
+            confidence: 0.9,
+            evidence: Vec::new(),
+            recommended_actions: Vec::new(),
+            runbook: Vec::new(),
+            techniques: Vec::new(),
+        }
+    }
+
+    /// The regression this whole change exists for.
+    ///
+    /// The listing is a page and stays one. Everything that reports a *total*
+    /// — a posture score, a metric, an evidence bundle — has to see the table
+    /// whole, or it publishes a number about less than it claims.
+    #[tokio::test]
+    async fn an_aggregate_reads_the_whole_table_not_the_first_page() {
+        let database = database().await;
+        let id = Uuid::new_v4();
+        database.upsert_asset(&asset(id, "internal")).await.unwrap();
+
+        let now = Utc::now();
+        for index in 0..600_u32 {
+            let severity = if index % 3 == 0 { Severity::High } else { Severity::Low };
+            let entry =
+                candidate(id, &format!("{id}:synthetic:{index}"), Category::Exposure, severity);
+            database.upsert_incident(entry, now).await.unwrap();
+        }
+
+        // Without a limit the store returns everything it holds.
+        let everything = database.list_incidents(&IncidentFilter::default()).await.unwrap();
+        assert_eq!(everything.len(), 600, "an unbounded listing must not stop at a page");
+
+        // A caller that asks for a page still gets exactly that page.
+        let page = IncidentFilter { limit: Some(500), ..IncidentFilter::default() };
+        assert_eq!(database.list_incidents(&page).await.unwrap().len(), 500);
+
+        // And the summary the score is built from counts all of them.
+        let findings = database.open_finding_counts(None).await.unwrap();
+        assert_eq!(findings.total(), 600);
+        assert_eq!(findings.category_total(Category::Exposure), 600);
+        assert_eq!(findings.worst(), Some(Severity::High));
+    }
+
+    /// Summarising in SQL must produce the same score as counting in memory.
+    #[tokio::test]
+    async fn a_summary_scores_exactly_like_the_incidents_it_summarises() {
+        let database = database().await;
+        let id = Uuid::new_v4();
+        database.upsert_asset(&asset(id, "internal")).await.unwrap();
+
+        let now = Utc::now();
+        let mixture = [
+            (Category::Exposure, Severity::Critical),
+            (Category::Intrusion, Severity::High),
+            (Category::Hygiene, Severity::Medium),
+            (Category::Resource, Severity::Low),
+            (Category::Integrity, Severity::Info),
+        ];
+        for (index, (category, severity)) in mixture.into_iter().enumerate() {
+            let entry = candidate(id, &format!("{id}:mix:{index}"), category, severity);
+            database.upsert_incident(entry, now).await.unwrap();
+        }
+
+        let incidents = database.list_incidents(&IncidentFilter::default()).await.unwrap();
+        let findings = database.open_finding_counts(Some(id)).await.unwrap();
+        assert_eq!(
+            rootcause_core::posture::compute_from_counts(&findings, None, now),
+            rootcause_core::posture::compute(&incidents, None, now),
+        );
+    }
+
+    /// The evidence bundle asks for the whole trail; the console asks for a page.
+    #[tokio::test]
+    async fn the_audit_trail_can_be_read_whole_or_paged() {
+        let database = database().await;
+        for index in 0..1_005_u32 {
+            database
+                .audit("prueba", "incident.status_changed", &index.to_string(), json!({}))
+                .await
+                .unwrap();
+        }
+
+        assert_eq!(database.list_audit(Some(200)).await.unwrap().len(), 200);
+        assert_eq!(database.list_audit(None).await.unwrap().len(), 1_005);
+    }
+
     #[tokio::test]
     async fn repeated_findings_are_deduplicated_and_counted() {
         let database = database().await;
@@ -1032,7 +1225,7 @@ mod tests {
         assert_eq!(database.counts().await.unwrap().open_incidents, 0);
         assert!(
             database
-                .list_audit(10)
+                .list_audit(Some(10))
                 .await
                 .unwrap()
                 .iter()
@@ -1077,7 +1270,7 @@ mod tests {
             .unwrap();
         assert_eq!(updated.status, IncidentStatus::Acknowledged);
 
-        let audit = database.list_audit(10).await.unwrap();
+        let audit = database.list_audit(Some(10)).await.unwrap();
         let entry = audit.iter().find(|entry| entry.action == "incident.status.changed").unwrap();
         assert_eq!(entry.actor, "vladimir");
         assert_eq!(entry.detail["from"], "open");

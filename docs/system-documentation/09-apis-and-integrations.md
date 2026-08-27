@@ -330,8 +330,10 @@ Content-Disposition: attachment; filename="rootcause-evidencia.ndjson"
 {"kind":"audit","audit":{…}}
 ```
 
-La primera línea es siempre la cabecera del paquete. Incluye hasta 1 000
-entradas de auditoría.
+La primera línea es siempre la cabecera del paquete, e incluye **todos** los
+activos, **todos** los incidentes y **toda** la auditoría. Un paquete de
+evidencia que se detiene en una fila arbitraria no es un registro de lo que
+pasó.
 
 ### `GET /metrics`
 

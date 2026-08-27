@@ -136,7 +136,7 @@
 | **Persistencia** | `assets.posture_score`, `audit_log` |
 | **Pruebas** | `a_clean_fleet_scores_one_hundred`, `resolved_incidents_do_not_count`, **`cp::a_finding_stays_open_when_its_surface_could_not_be_inspected`**, `cp::a_collection_gap_is_reported_back_to_the_agent`, `cp::a_closed_port_resolves_its_own_incident_on_the_next_cycle` |
 | **Documentos** | [06 §4](06-deep-code-explanation.md), [08](08-data-flow.md), [REQ-SEC-003](../requirements/REQ-SEC-003.md) |
-| **Estado** | **Verificado**. ⚠ Ver [R-01](15-risks-and-technical-debt.md#r-01): el tope de 500 incidentes puede truncar el cálculo |
+| **Estado** | **Verificado.** El tope de 500 incidentes que truncaba el cálculo ([R-01](15-risks-and-technical-debt.md#r-01)) está corregido: la puntuación se calcula con `COUNT(*)` y `GROUP BY` sobre toda la tabla |
 
 ## 8 · Respuesta guiada, nunca ejecutada
 
@@ -285,7 +285,7 @@
 | **Persistencia** | `audit_log` (**no se poda nunca**), `incidents` |
 | **Pruebas** | `cp::the_evidence_export_is_newline_delimited_json`, `cp::an_incident_can_be_acknowledged_and_the_change_is_audited` |
 | **Documentos** | [09](09-apis-and-integrations.md), [07](07-database.md) |
-| **Estado** | **Verificado**. ⚠ El paquete se limita a 500 incidentes: ver [R-01](15-risks-and-technical-debt.md#r-01) |
+| **Estado** | **Verificado.** El paquete incluye ahora todos los incidentes y toda la auditoría ([R-01](15-risks-and-technical-debt.md#r-01) corregido) |
 
 ## 18 · Observabilidad del propio sistema
 
@@ -299,7 +299,7 @@
 | **Persistencia** | Lectura de `assets`, `incidents`, `defense_events` |
 | **Pruebas** | `cp::metrics_are_exposed_in_prometheus_format`, `cp::health_is_public_and_the_api_is_not` |
 | **Documentos** | [09](09-apis-and-integrations.md), [13](13-deployment-and-operations.md) |
-| **Estado** | **Verificado**. ⚠ Contadores por categoría sujetos al tope de 500: ver [R-01](15-risks-and-technical-debt.md#r-01) |
+| **Estado** | **Verificado.** Los contadores por categoría salen de un `GROUP BY` sobre toda la tabla ([R-01](15-risks-and-technical-debt.md#r-01) corregido) |
 
 ## 19 · Compatibilidad de protocolo
 

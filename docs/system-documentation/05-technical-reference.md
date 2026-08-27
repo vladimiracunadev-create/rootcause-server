@@ -21,6 +21,7 @@
 | Constante | Valor | Archivo | Para qué |
 |---|---|---|---|
 | `HISTORY_WINDOW` | `12` | `api.rs:37` | Muestras de historial entregadas a los detectores por ingesta |
+| `INCIDENT_PAGE` | `500` | `api.rs` | Incidentes que devuelve la **ruta de listado** cuando el llamador no pide límite. Ningún agregado lo usa: leen la tabla entera |
 | `STALE_AFTER_SECONDS` | `120` | `storage.rs:51` | A partir de aquí un activo está `stale` |
 | `OFFLINE_AFTER_SECONDS` | `600` | `storage.rs:52` | A partir de aquí un activo está `offline` |
 | `MAX_TRACKED_CLIENTS` | `20_000` | `defense.rs:21` | Direcciones vigiladas antes de desalojar la más antigua |

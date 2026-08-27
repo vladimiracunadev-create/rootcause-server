@@ -29,7 +29,7 @@
 
 | # | Hallazgo | Severidad | Prioridad | Tipo |
 |---|---|---|---|---|
-| [R-01](#r-01) | El límite de 500 incidentes trunca en silencio postura, métricas y exportación | Alta | **P1** | **Nuevo** |
+| [R-01](#r-01) | El límite de 500 incidentes trunca en silencio postura, métricas y exportación | Alta | **P1** | **Corregido** |
 | [R-02](#r-02) | La ingesta de un sobre no es atómica | Alta | P2 | Nuevo |
 | [R-03](#r-03) | La identidad del activo colisiona con nombres de equipo repetidos | Alta | P2 | Nuevo |
 | [R-04](#r-04) | Un solo token, sin rotación ni caducidad | Alta | P2 | Límite conocido |
@@ -39,7 +39,7 @@
 | [R-08](#r-08) | La superficie de seguridad no tiene historial | Media | P3 | Nuevo |
 | [R-09](#r-09) | `console/app.js`: 1 177 líneas sin una sola prueba | Media | P2 | Nuevo |
 | [R-10](#r-10) | Los parsers de salida de herramientas no tienen pruebas de robustez | Media | P2 | Nuevo |
-| [R-11](#r-11) | Sin respaldo ni restauración automatizados | Media | **P1** | Nuevo |
+| [R-11](#r-11) | Sin respaldo ni restauración automatizados | Media | **P1** | **Corregido** |
 | [R-12](#r-12) | Sin registro de acceso autenticado exitoso | Media | P3 | Nuevo |
 | [R-13](#r-13) | Sin cifrado en reposo | Media | P3 | Límite conocido |
 | [R-14](#r-14) | `api.rs` y `storage.rs` superan las 1 000 líneas | Baja | P3 | Nuevo |
@@ -97,6 +97,34 @@ requisito cubre.
    agregado declare si hubo truncamiento (coherente con `uninspected_surfaces`).
 3. Calcular postura y contadores por categoría con `COUNT`/`GROUP BY` en SQL en
    lugar de materializando incidentes.
+
+### ✅ Corregido
+
+Se aplicó la tercera opción, que es la que elimina el problema en vez de
+desplazarlo:
+
+- **`IncidentFilter::limit` significa lo que dice.** `None` es *sin límite*.
+  Solo `GET /api/v1/incidents` fija un tope explícito (`INCIDENT_PAGE = 500`,
+  ajustable con `?limit=`), porque es lo único que pinta una página para una
+  persona.
+- **La postura se calcula desde un resumen, no desde una página.**
+  `posture::FindingCounts` y `posture::compute_from_counts` puntúan a partir de
+  cuántos hallazgos abiertos hay de cada categoría y severidad;
+  `Database::open_finding_counts` y `open_findings_by_asset` producen ese
+  resumen con `COUNT(*)` y `GROUP BY` sobre **toda** la tabla.
+- **El paquete de evidencia va completo**, incidentes y auditoría: `list_audit`
+  acepta `None` para devolver el rastro entero.
+- **Efecto secundario buscado:** `/api/v1/status`, `/metrics`, la topología y el
+  inventario dejan de deserializar incidentes para contar, y `list_assets` ya no
+  clona cada hallazgo. Eso reduce también [R-07](#r-07).
+
+**Pruebas que lo fijan:**
+`an_aggregate_reads_the_whole_table_not_the_first_page` inserta 600 hallazgos y
+comprueba que el listado sin límite devuelve 600, que uno con `limit: Some(500)`
+devuelve 500 y que el resumen cuenta los 600;
+`a_summary_scores_exactly_like_the_incidents_it_summarises` verifica que contar
+en SQL da exactamente la misma puntuación que contar en memoria;
+`the_audit_trail_can_be_read_whole_or_paged` cubre la exportación completa.
 
 ---
 
@@ -241,10 +269,13 @@ solo equipo, y anunciarlo con claridad si se plantea uso multiusuario.
 
 **Evidencia.**
 
-- `status`, `topology`, `metrics` y `export` cargan hasta 500 incidentes
-  completos y los deserializan enteros solo para contar o agregar.
-- `list_assets` llama a `group_incidents`, que **clona cada incidente** en un
-  `HashMap<Uuid, Vec<Incident>>`.
+- ~~`status`, `topology`, `metrics` y `export` cargan hasta 500 incidentes
+  completos y los deserializan enteros solo para contar o agregar.~~
+  **Corregido junto con [R-01](#r-01):** las cuatro rutas usan ahora
+  `open_finding_counts` / `open_findings_by_asset`, que cuentan en SQL.
+- ~~`list_assets` llama a `group_incidents`, que **clona cada incidente** en un
+  `HashMap<Uuid, Vec<Incident>>`.~~ **Corregido junto con [R-01](#r-01):**
+  `group_incidents` ya no existe.
 - `asset_detail` llama a `list_assets()` —toda la flota— y después busca uno
   con `position()`, en vez de consultar ese activo directamente.
 - La consola llama a todas estas rutas **cada 10 segundos**.
@@ -350,6 +381,33 @@ recreaciones del contenedor, pero un volumen no es un respaldo.
 **Recomendación.** Añadir un `scripts/backup.sh` que use `sqlite3 .backup`,
 documentar la restauración y comprobarla al menos una vez. Es de las tareas de
 mejor relación valor/esfuerzo del repositorio.
+
+### ✅ Corregido
+
+[`scripts/backup.sh`](../../scripts/backup.sh) y su equivalente
+[`scripts/backup.ps1`](../../scripts/backup.ps1):
+
+- usan `.backup` de SQLite, que es seguro con el servidor escribiendo, en vez de
+  `cp` —que con WAL puede producir una instantánea rota si no viajan también los
+  ficheros `-wal` y `-shm`—;
+- **verifican la copia antes de darla por buena**: `PRAGMA integrity_check` más
+  recuento de filas de `incidents`, `audit_log` y `assets` contra el origen. Si
+  la copia no se puede leer, o tiene más filas que el origen, el script falla
+  con código 1 en lugar de informar de un éxito;
+- conservan las N copias más recientes (`ROOTCAUSE_BACKUP_KEEP`, 14 por
+  omisión);
+- imprimen el procedimiento de restauración, incluida la advertencia de que
+  restaurar en un binario anterior al que creó el respaldo no está probado
+  porque no hay migraciones descendentes.
+
+**Verificado** contra una base creada con las migraciones reales del repositorio:
+copia, integridad, recuento de las tres tablas, retención, forma `sqlite://` de
+la ruta y el camino de fallo cuando la base no existe.
+
+**Lo que sigue siendo responsabilidad de quien opera:** programar la ejecución
+(cron, temporizador de systemd o tarea programada), llevarse las copias fuera
+del anfitrión y **probar una restauración de verdad**. Un respaldo que nunca se
+restauró sigue sin ser un respaldo.
 
 ---
 
@@ -608,17 +666,17 @@ revisó:
 | Dependencias con aviso sin exención justificada | **Ninguna.** `cargo audit --deny warnings`: 315 dependencias contra 1 226 avisos, sin hallazgos. `cargo deny --all-features check`: `advisories ok, bans ok, licenses ok, sources ok` |
 | Cifras de la documentación desincronizadas del código | **Ninguna** en las que cubre `guard_claims.py` (18 reglas, versión `0.2.0`) |
 | Archivos con BOM, CRLF o mojibake | **Ninguno.** 109 archivos verificados |
-| Fallos de prueba | **Ninguno.** 250 pruebas, 0 fallos, el 2026-08-26 |
+| Fallos de prueba | **Ninguno.** 253 pruebas, 0 fallos, el 2026-08-26 |
 
 ## Decisiones que requieren validación humana
 
 | # | Decisión | Quién debe validarla |
 |---|---|---|
-| 1 | Si el límite de 500 incidentes es aceptable para la exportación de evidencia (R-01) | Producto y quien audite |
+| 1 | ~~Si el límite de 500 incidentes es aceptable para la exportación de evidencia~~ — **resuelto: ya no hay límite en la exportación** (R-01) | — |
 | 2 | Si el nombre de equipo basta como identidad de activo en su flota (R-03) | Quien opere |
 | 3 | Retención adecuada al marco legal aplicable (R-05) | Legal y quien opere |
 | 4 | Si hace falta cifrado en reposo en su despliegue (R-13) | Seguridad |
-| 5 | Procedimiento de respaldo y su prueba de restauración (R-11) | Quien opere |
+| 5 | El respaldo ya está automatizado y se verifica solo (R-11); falta **programarlo, sacarlo del anfitrión y probar una restauración real** | Quien opere |
 | 6 | Que la atestación de procedencia de la publicación funciona (13) | Quien publique |
 | 7 | Que el instalador de Windows produce un instalador funcional (13) | Quien publique |
 

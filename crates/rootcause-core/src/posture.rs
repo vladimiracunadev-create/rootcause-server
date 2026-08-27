@@ -4,12 +4,71 @@
 //! with the list of surfaces that could not be inspected, so a high number on
 //! an uninspected server never reads as a clean bill of health.
 
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Utc};
 
 use crate::{
     models::{Category, Incident, IncidentStatus, PostureDimension, PostureScore, Severity},
     security::SecuritySignals,
 };
+
+/// Open findings summarised by category and severity.
+///
+/// A score never needs the text of a finding, only how many of each severity
+/// are open in each dimension. Summarising first is what allows the caller to
+/// aggregate the *whole* scope in one query instead of materialising a page of
+/// incidents and quietly scoring that page.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FindingCounts {
+    counts: BTreeMap<(Category, Severity), u32>,
+}
+
+impl FindingCounts {
+    /// A summary with nothing open.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record `count` open findings of one category and severity.
+    pub fn add(&mut self, category: Category, severity: Severity, count: u32) {
+        if count == 0 {
+            return;
+        }
+        let entry = self.counts.entry((category, severity)).or_default();
+        *entry = entry.saturating_add(count);
+    }
+
+    /// Open findings across every category.
+    pub fn total(&self) -> u32 {
+        self.counts.values().copied().fold(0_u32, u32::saturating_add)
+    }
+
+    /// Whether the scope has no open findings at all.
+    pub fn is_empty(&self) -> bool {
+        self.counts.is_empty()
+    }
+
+    /// Highest severity open anywhere, or `None` when nothing is open.
+    ///
+    /// This is what caps the headline score, so an emergency cannot be diluted
+    /// by five healthy dimensions.
+    pub fn worst(&self) -> Option<Severity> {
+        self.counts.keys().map(|(_, severity)| *severity).max()
+    }
+
+    /// Open findings of one category.
+    pub fn category_total(&self, category: Category) -> u32 {
+        self.in_category(category).map(|(_, count)| count).fold(0_u32, u32::saturating_add)
+    }
+
+    fn in_category(&self, category: Category) -> impl Iterator<Item = (Severity, u32)> + '_ {
+        self.counts
+            .iter()
+            .filter(move |((entry, _), _)| *entry == category)
+            .map(|((_, severity), count)| (*severity, *count))
+    }
+}
 
 /// Points removed from a dimension for one open finding.
 const fn weight(severity: Severity) -> u32 {
@@ -53,37 +112,37 @@ fn dimension_summary(category: Category, findings: u32, worst: Option<Severity>)
     }
 }
 
-/// Compute a posture score from the open incidents of a scope.
+/// Compute a posture score from a summary of the open findings of a scope.
 ///
 /// `signals` is optional and only contributes the honesty list: what the agent
 /// could not inspect during its last cycle.
-pub fn compute(
-    incidents: &[Incident],
+pub fn compute_from_counts(
+    findings: &FindingCounts,
     signals: Option<&SecuritySignals>,
     computed_at: DateTime<Utc>,
 ) -> PostureScore {
-    let open: Vec<&Incident> =
-        incidents.iter().filter(|incident| incident.status != IncidentStatus::Resolved).collect();
-
     let mut dimensions = Vec::with_capacity(Category::ALL.len());
     let mut weighted_total = 0_u32;
     let mut weight_sum = 0_u32;
 
     for category in Category::ALL {
-        let matching: Vec<&&Incident> =
-            open.iter().filter(|incident| incident.category == category).collect();
-        let penalty: u32 = matching.iter().map(|incident| weight(incident.severity)).sum();
+        let mut penalty = 0_u32;
+        let mut open = 0_u32;
+        let mut worst: Option<Severity> = None;
+        for (severity, occurrences) in findings.in_category(category) {
+            penalty = penalty.saturating_add(weight(severity).saturating_mul(occurrences));
+            open = open.saturating_add(occurrences);
+            worst = Some(worst.map_or(severity, |current| current.max(severity)));
+        }
         let score = 100_u32.saturating_sub(penalty).min(100) as u8;
-        let worst = matching.iter().map(|incident| incident.severity).max();
-        let findings = matching.len() as u32;
 
         weighted_total += u32::from(score) * dimension_weight(category);
         weight_sum += dimension_weight(category);
         dimensions.push(PostureDimension {
             category,
             score,
-            findings,
-            summary: dimension_summary(category, findings, worst),
+            findings: open,
+            summary: dimension_summary(category, open, worst),
         });
     }
 
@@ -92,13 +151,12 @@ pub fn compute(
     // worst open finding therefore scales the headline number down, so a server
     // with an exposed database cannot be graded "B" because everything else is
     // in order — while still ranking worse when more dimensions are affected.
-    let ceiling =
-        open.iter().map(|incident| incident.severity).max().map_or(100_u32, |worst| match worst {
-            Severity::Critical => 55,
-            Severity::High => 74,
-            Severity::Medium => 89,
-            Severity::Low | Severity::Info => 100,
-        });
+    let ceiling = findings.worst().map_or(100_u32, |worst| match worst {
+        Severity::Critical => 55,
+        Severity::High => 74,
+        Severity::Medium => 89,
+        Severity::Low | Severity::Info => 100,
+    });
     let score = (u32::from(average) * ceiling / 100) as u8;
     let uninspected_surfaces = signals
         .map(|signals| {
@@ -117,6 +175,25 @@ pub fn compute(
         uninspected_surfaces,
         computed_at,
     }
+}
+
+/// Summarise open incidents and score them.
+///
+/// Convenience for callers that already hold the incidents. A caller that only
+/// wants the number should count in the data store and use
+/// [`compute_from_counts`] instead: loading a page of incidents to score a
+/// whole fleet is how a score ends up describing less than it claims.
+pub fn compute(
+    incidents: &[Incident],
+    signals: Option<&SecuritySignals>,
+    computed_at: DateTime<Utc>,
+) -> PostureScore {
+    let mut findings = FindingCounts::new();
+    for incident in incidents.iter().filter(|incident| incident.status != IncidentStatus::Resolved)
+    {
+        findings.add(incident.category, incident.severity, 1);
+    }
+    compute_from_counts(&findings, signals, computed_at)
 }
 
 /// Convenience wrapper that timestamps the score with the current instant.

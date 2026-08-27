@@ -271,7 +271,7 @@ desarrolla.
 |---|---|
 | Versión | `0.2.0`, coherente entre `Cargo.toml`, `README.md` y `CHANGELOG.md` (verificado por `scripts/guard_claims.py`) |
 | Historial | 9 commits; el árbol es una reescritura reciente sobre una línea base `0.1.0` |
-| Pruebas | 250 anotaciones de prueba, más un binario de pruebas de integración de 637 líneas |
+| Pruebas | 253 anotaciones de prueba, más un binario de pruebas de integración de 637 líneas |
 | CI | 15 trabajos, incluida una puerta final que falla si algún control no llegó a ejecutarse |
 | Documentación previa | 15 documentos, 3 ADR y 3 requisitos de seguridad |
 | Guardianes propios | 3 scripts Python que CI ejecuta: consola, coherencia de afirmaciones y codificación |

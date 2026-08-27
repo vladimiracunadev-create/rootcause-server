@@ -265,6 +265,7 @@ Funciones públicas de `api.rs` que existen para poder probarse por separado:
 | `file_baseline`, `update_file_baseline` | Detección de cambio de archivo exactamente una vez |
 | `record_auth_pressure`, `threat_sources`, `total_auth_failures` | Informe de amenazas de la flota |
 | `upsert_incident`, `auto_resolve`, `list_incidents`, `incident`, `update_incident_status` | Ciclo de vida del incidente |
+| `open_finding_counts`, `open_findings_by_asset` | Resumen de hallazgos abiertos por categoría y severidad con `COUNT(*)` y `GROUP BY`: permite puntuar la postura de toda la flota sin materializarla |
 | `counts` | Cifras de cabecera y métricas |
 | `record_defense_event`, `defense_counters` | Defensa del propio plano de control |
 | `audit`, `list_audit` | Rastro inmutable |
@@ -320,6 +321,7 @@ asignación a `innerHTML`.
 | [`sbom.py`](../../scripts/sbom.py) | Genera un SBOM CycloneDX desde `cargo metadata`, solo con la biblioteca estándar | CI, trabajo «Inventario de dependencias» |
 | [`docs_pdf.py`](../../scripts/docs_pdf.py) | Convierte `docs/system-documentation/*.md` a HTML autocontenido y a PDF; dibuja los diagramas Mermaid con `mmdc` e imprime con Chrome, Chromium o Edge | Persona, a demanda |
 | [`smoke.sh`](../../scripts/smoke.sh) | Prueba de humo real: compila, arranca servidor y agente, y comprueba lo que comprobaría un operador | CI, trabajo «Prueba de humo» |
+| [`backup.sh`](../../scripts/backup.sh) / [`backup.ps1`](../../scripts/backup.ps1) | Respalda la base con `.backup` de SQLite y **verifica la copia** antes de darla por buena: integridad y recuento de filas contra el origen | Persona, o una tarea programada |
 | [`dev.sh`](../../scripts/dev.sh) / [`dev.ps1`](../../scripts/dev.ps1) | Arranca el servidor en desarrollo generando token si falta | Persona |
 | [`run-agent.sh`](../../scripts/run-agent.sh) / [`run-agent.ps1`](../../scripts/run-agent.ps1) | Ejecuta el sensor contra el plano local; sin argumentos, un solo ciclo | Persona |
 

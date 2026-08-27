@@ -20,7 +20,8 @@ use rootcause_core::{
         TelemetryEnvelope, ThreatReport, TopologyEdge, TopologyNode, TopologySnapshot,
     },
     policy::DetectionPolicy,
-    posture, protocol_is_supported,
+    posture::{self, FindingCounts},
+    protocol_is_supported,
     runbook::RunbookStep,
     security::{BindScope, SecuritySignals, service_name},
 };
@@ -35,6 +36,11 @@ use crate::{auth, error::ApiError, headers, state::AppState, storage::IncidentFi
 
 /// Samples of history handed to the detectors on every ingest.
 const HISTORY_WINDOW: i64 = 12;
+/// Incidents returned by the listing route when the caller names no limit.
+///
+/// Only the listing is paged: it renders a screen for a person. Every
+/// aggregate and the evidence bundle read the table whole.
+const INCIDENT_PAGE: i64 = 500;
 /// Decide which categories may close on their own for this cycle.
 ///
 /// A finding may auto-resolve only when the surface that produced it was
@@ -119,11 +125,7 @@ async fn ready(State(state): State<AppState>) -> Result<Json<HealthResponse>, Ap
 
 async fn status(State(state): State<AppState>) -> Result<Json<StatusResponse>, ApiError> {
     let counts = state.database.counts().await.map_err(ApiError::internal)?;
-    let incidents = state
-        .database
-        .list_incidents(&IncidentFilter::default())
-        .await
-        .map_err(ApiError::internal)?;
+    let findings = state.database.open_finding_counts(None).await.map_err(ApiError::internal)?;
     Ok(Json(StatusResponse {
         service: "rootcause-server".to_owned(),
         version: env!("CARGO_PKG_VERSION").to_owned(),
@@ -136,7 +138,7 @@ async fn status(State(state): State<AppState>) -> Result<Json<StatusResponse>, A
         exposed_services: counts.exposed_services,
         blocked_sources: counts.blocked_sources,
         detectors: RULES.len(),
-        posture: Some(posture::compute_now(&incidents, None)),
+        posture: Some(posture::compute_from_counts(&findings, None, Utc::now())),
         hardening: state.hardening(),
     }))
 }
@@ -186,15 +188,13 @@ async fn register_asset(
 
 async fn list_assets(State(state): State<AppState>) -> Result<Json<Vec<AssetView>>, ApiError> {
     let mut assets = state.database.list_assets().await.map_err(ApiError::internal)?;
-    let incidents = state
-        .database
-        .list_incidents(&IncidentFilter::default())
-        .await
-        .map_err(ApiError::internal)?;
-    let by_asset = group_incidents(&incidents);
+    let by_asset = state.database.open_findings_by_asset().await.map_err(ApiError::internal)?;
+    let nothing_open = FindingCounts::new();
+    let computed_at = Utc::now();
     for asset in &mut assets {
-        let own = by_asset.get(&asset.registration.agent_id).cloned().unwrap_or_default();
-        asset.posture = Some(posture::compute_now(&own, asset.security.as_ref()));
+        let own = by_asset.get(&asset.registration.agent_id).unwrap_or(&nothing_open);
+        asset.posture =
+            Some(posture::compute_from_counts(own, asset.security.as_ref(), computed_at));
     }
     Ok(Json(assets))
 }
@@ -335,12 +335,9 @@ async fn ingest_telemetry(
             .map_err(ApiError::internal)?;
     }
 
-    let own = state
-        .database
-        .list_incidents(&IncidentFilter { asset_id: Some(agent_id), ..IncidentFilter::default() })
-        .await
-        .map_err(ApiError::internal)?;
-    let score = posture::compute_now(&own, envelope.security.as_ref()).score;
+    let own =
+        state.database.open_finding_counts(Some(agent_id)).await.map_err(ApiError::internal)?;
+    let score = posture::compute_from_counts(&own, envelope.security.as_ref(), received_at).score;
     state.database.store_posture(agent_id, score).await.map_err(ApiError::internal)?;
 
     Ok(Json(IngestResponse { accepted: true, incidents_touched, warnings }))
@@ -362,7 +359,13 @@ impl IncidentQuery {
         let status = parse_optional(self.status.as_deref(), IncidentStatus::parse, "status")?;
         let severity = parse_optional(self.severity.as_deref(), Severity::parse, "severity")?;
         let category = parse_optional(self.category.as_deref(), Category::parse, "category")?;
-        Ok(IncidentFilter { status, severity, category, asset_id: self.asset, limit: self.limit })
+        Ok(IncidentFilter {
+            status,
+            severity,
+            category,
+            asset_id: self.asset,
+            limit: Some(self.limit.unwrap_or(INCIDENT_PAGE)),
+        })
     }
 }
 
@@ -533,10 +536,10 @@ async fn threats(State(state): State<AppState>) -> Result<Json<ThreatReport>, Ap
 // ------------------------------------------------------------------ topology
 
 /// Build the defence map: what the Internet reaches, and what it does not.
-pub fn build_topology(assets: &[AssetView], incidents: &[Incident]) -> TopologySnapshot {
-    let risks = worst_risk_by_asset(incidents);
-    let open_counts = open_incident_counts(incidents);
-
+pub fn build_topology(
+    assets: &[AssetView],
+    findings: &HashMap<Uuid, FindingCounts>,
+) -> TopologySnapshot {
     let mut nodes = vec![
         TopologyNode {
             id: "internet".to_owned(),
@@ -598,7 +601,7 @@ pub fn build_topology(assets: &[AssetView], incidents: &[Incident]) -> TopologyS
             });
         }
 
-        let risk = risks.get(&agent_id).copied();
+        let risk = findings.get(&agent_id).and_then(FindingCounts::worst);
         nodes.push(TopologyNode {
             id: format!("asset:{agent_id}"),
             label: asset.registration.hostname.clone(),
@@ -608,7 +611,7 @@ pub fn build_topology(assets: &[AssetView], incidents: &[Incident]) -> TopologyS
             risk,
             zone: Some(zone.to_owned()),
             exposed_ports: public_ports,
-            open_incidents: open_counts.get(&agent_id).copied().unwrap_or_default(),
+            open_incidents: findings.get(&agent_id).map_or(0, FindingCounts::total),
         });
         edges.push(TopologyEdge {
             source: format!("zone:{zone}"),
@@ -627,43 +630,10 @@ pub fn build_topology(assets: &[AssetView], incidents: &[Incident]) -> TopologyS
     TopologySnapshot { generated_at: Utc::now(), nodes, edges }
 }
 
-fn worst_risk_by_asset(incidents: &[Incident]) -> HashMap<Uuid, Severity> {
-    let mut risks: HashMap<Uuid, Severity> = HashMap::new();
-    for incident in incidents.iter().filter(|incident| incident.status != IncidentStatus::Resolved)
-    {
-        risks
-            .entry(incident.asset_id)
-            .and_modify(|severity| *severity = (*severity).max(incident.severity))
-            .or_insert(incident.severity);
-    }
-    risks
-}
-
-fn open_incident_counts(incidents: &[Incident]) -> HashMap<Uuid, u32> {
-    let mut counts: HashMap<Uuid, u32> = HashMap::new();
-    for incident in incidents.iter().filter(|incident| incident.status != IncidentStatus::Resolved)
-    {
-        *counts.entry(incident.asset_id).or_default() += 1;
-    }
-    counts
-}
-
-fn group_incidents(incidents: &[Incident]) -> HashMap<Uuid, Vec<Incident>> {
-    let mut grouped: HashMap<Uuid, Vec<Incident>> = HashMap::new();
-    for incident in incidents {
-        grouped.entry(incident.asset_id).or_default().push(incident.clone());
-    }
-    grouped
-}
-
 async fn topology(State(state): State<AppState>) -> Result<Json<TopologySnapshot>, ApiError> {
     let assets = state.database.list_assets().await.map_err(ApiError::internal)?;
-    let incidents = state
-        .database
-        .list_incidents(&IncidentFilter::default())
-        .await
-        .map_err(ApiError::internal)?;
-    Ok(Json(build_topology(&assets, &incidents)))
+    let findings = state.database.open_findings_by_asset().await.map_err(ApiError::internal)?;
+    Ok(Json(build_topology(&assets, &findings)))
 }
 
 // --------------------------------------------------------------------- audit
@@ -679,7 +649,7 @@ async fn audit(
 ) -> Result<Json<Vec<AuditEntry>>, ApiError> {
     state
         .database
-        .list_audit(query.limit.unwrap_or(200))
+        .list_audit(Some(query.limit.unwrap_or(200)))
         .await
         .map(Json)
         .map_err(ApiError::internal)
@@ -693,7 +663,7 @@ async fn export(State(state): State<AppState>) -> Result<impl IntoResponse, ApiE
         .list_incidents(&IncidentFilter::default())
         .await
         .map_err(ApiError::internal)?;
-    let audit = state.database.list_audit(1_000).await.map_err(ApiError::internal)?;
+    let audit = state.database.list_audit(None).await.map_err(ApiError::internal)?;
     let body = render_export(&assets, &incidents, &audit).map_err(ApiError::internal)?;
 
     Ok((
@@ -806,18 +776,12 @@ pub fn render_metrics(
 
 async fn metrics(State(state): State<AppState>) -> Result<impl IntoResponse, ApiError> {
     let counts = state.database.counts().await.map_err(ApiError::internal)?;
-    let incidents = state
-        .database
-        .list_incidents(&IncidentFilter::default())
-        .await
-        .map_err(ApiError::internal)?;
-    let mut by_category: BTreeMap<&'static str, u32> =
-        Category::ALL.iter().map(|category| (category.as_str(), 0)).collect();
-    for incident in incidents.iter().filter(|incident| incident.status != IncidentStatus::Resolved)
-    {
-        *by_category.entry(incident.category.as_str()).or_default() += 1;
-    }
-    let score = posture::compute_now(&incidents, None).score;
+    let findings = state.database.open_finding_counts(None).await.map_err(ApiError::internal)?;
+    let by_category: BTreeMap<&'static str, u32> = Category::ALL
+        .iter()
+        .map(|category| (category.as_str(), findings.category_total(*category)))
+        .collect();
+    let score = posture::compute_from_counts(&findings, None, Utc::now()).score;
 
     Ok((
         [(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
@@ -1028,7 +992,7 @@ mod tests {
             view(registration("srv-edge", "edge"), Some(exposed)),
             view(registration("srv-db", "database"), Some(internal)),
         ];
-        let snapshot = build_topology(&assets, &[]);
+        let snapshot = build_topology(&assets, &HashMap::new());
 
         assert!(snapshot.nodes.iter().any(|node| node.id == "internet"));
         assert!(snapshot.nodes.iter().any(|node| node.id == "zone:expuesto"));

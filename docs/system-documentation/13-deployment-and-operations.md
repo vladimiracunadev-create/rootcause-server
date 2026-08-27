@@ -272,20 +272,35 @@ análisis, no configuración existente*—:
 
 ## Respaldos
 
-**Estado en el repositorio:** *No identificado.* No hay script, ni tarea
-programada, ni documentación de restauración. El volumen `rootcause-data`
-preserva el archivo entre recreaciones del contenedor, pero **un volumen no es
-un respaldo**.
-
-Procedimiento correcto —*propuesta de este análisis, requiere validación*—:
+**Estado en el repositorio:** [`scripts/backup.sh`](../../scripts/backup.sh),
+con su equivalente [`scripts/backup.ps1`](../../scripts/backup.ps1).
 
 ```bash
-sqlite3 /var/lib/rootcause/rootcause.db ".backup '/respaldo/rootcause-$(date +%F).db'"
+bash scripts/backup.sh /var/lib/rootcause/rootcause.db /respaldo
 ```
 
-`.backup` es seguro con la base en uso. Copiar el archivo con `cp` mientras el
-servidor escribe puede producir una copia inconsistente si no se copian también
-`-wal` y `-shm`.
+Copia con `.backup` de SQLite —seguro con el servidor escribiendo—, comprueba la
+copia con `PRAGMA integrity_check`, contrasta el número de filas de
+`incidents`, `audit_log` y `assets` contra el origen, y conserva las N más
+recientes (`ROOTCAUSE_BACKUP_KEEP`, 14 por omisión). Falla con código 1 si
+cualquier comprobación no cuadra.
+
+Para ejecutarlo cada noche con systemd:
+
+```ini
+[Unit]
+Description=Respaldo verificado de RootCause
+
+[Service]
+Type=oneshot
+User=rootcause
+ExecStart=/usr/local/bin/rootcause-backup.sh /var/lib/rootcause/rootcause.db /respaldo
+```
+
+**Lo que el script no hace, y sigue siendo responsabilidad de quien opera:**
+programarlo, llevarse las copias fuera del anfitrión y **probar una
+restauración de verdad**. Un respaldo que nunca se restauró sigue sin ser un
+respaldo.
 
 Qué respaldar, por orden de importancia:
 

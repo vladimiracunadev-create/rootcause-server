@@ -52,7 +52,7 @@ compila dentro de WSL.
 cargo test --workspace --all-targets --locked
 ```
 
-Debe decir **250 pruebas, 0 fallos**. Si no es así, el problema es del entorno,
+Debe decir **253 pruebas, 0 fallos**. Si no es así, el problema es del entorno,
 no tuyo: arréglalo antes de seguir.
 
 ### Levantar el sistema completo
@@ -329,7 +329,7 @@ En orden creciente de dificultad. Todas salen de hallazgos reales de
 
 | Tarea | Qué aprendes | Hallazgo |
 |---|---|---|
-| Escribir `scripts/backup.sh` con `sqlite3 .backup`, documentarlo y **probar la restauración** | Modelo de datos y operación | R-11 |
+| Programar `scripts/backup.sh` con un temporizador de systemd, llevarlo fuera del anfitrión y **probar la restauración** | Modelo de datos y operación | R-11 |
 | Añadir un puerto al `PORT_CATALOG` con su clase de riesgo, y su prueba | El motor de exposición de punta a punta | — |
 | Añadir la prueba que falta: crear una base con `0001`, poblarla, aplicar `0002` y comprobar que sigue legible | Migraciones y compatibilidad | 12, n.º 4 |
 | Añadir a `Database` una consulta de un solo activo y usarla en `asset_detail` en vez de listar toda la flota | Capa de almacenamiento | R-07 |
@@ -338,7 +338,7 @@ En orden creciente de dificultad. Todas salen de hallazgos reales de
 
 | Tarea | Qué aprendes | Hallazgo |
 |---|---|---|
-| Corregir el tope de 500 incidentes en `export` y en el cálculo de postura | El corazón del producto y su compromiso de honestidad | R-01 |
+| Extender el resumen en SQL a la vista de amenazas, que aún materializa filas | El corazón del producto y su compromiso de honestidad | R-07 |
 | Escribir pruebas de robustez para `parse_ss`, `parse_netstat_windows` y `parse_sshd_log` con entrada arbitraria | La zona de mayor incertidumbre técnica | R-10 |
 | Envolver el ciclo de ingesta en una transacción y probar la interrupción | Transacciones y consistencia | R-02 |
 | Añadir la opción `--agent-id` al sensor, con su validación | Identidad de activos | R-03 |
@@ -357,7 +357,7 @@ En orden creciente de dificultad. Todas salen de hallazgos reales de
 | Momento | Objetivo | Señal de que lo lograste |
 |---|---|---|
 | **Día 1** | Entender el problema y los límites | Puedes explicar por qué la misma base de datos es rutina o emergencia según dónde escuche |
-| **Día 2** | Entorno funcionando | 250 pruebas en verde y tu máquina enrolada en tu propia consola |
+| **Día 2** | Entorno funcionando | 253 pruebas en verde y tu máquina enrolada en tu propia consola |
 | **Día 3** | Mapa mental del repositorio | Sabes decir si algo va en `core`, en `agent` o en `server` sin buscarlo |
 | **Día 4** | Un flujo de punta a punta | Puedes trazar un puerto abierto desde `ss` hasta la pantalla |
 | **Semana 1** | Primera contribución | Un PR pequeño con CI en verde |

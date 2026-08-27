@@ -362,28 +362,34 @@ Por omisión son 30 días (`ROOTCAUSE_RETENTION_DAYS`), con rango válido de 1 a
 
 ## Respaldo y recuperación
 
-**Estado en el repositorio:** *No identificado.* No hay script de respaldo, ni
-tarea programada, ni documentación de restauración. Lo único que existe es el
-volumen nombrado `rootcause-data` de `compose.yml`, que preserva el archivo
-entre recreaciones del contenedor pero **no es un respaldo**.
-
-Procedimiento correcto para SQLite con WAL, para quien opere el despliegue
-—*requiere validación en el entorno real*—:
+**Estado en el repositorio:** [`scripts/backup.sh`](../../scripts/backup.sh)
+—y [`scripts/backup.ps1`](../../scripts/backup.ps1) en Windows—.
 
 ```bash
-sqlite3 /var/lib/rootcause/rootcause.db ".backup '/respaldo/rootcause-$(date +%F).db'"
+bash scripts/backup.sh /var/lib/rootcause/rootcause.db /respaldo
 ```
 
-`.backup` es seguro con la base en uso; copiar el archivo con `cp` mientras el
-servidor escribe puede producir una copia inconsistente si no se copian también
-`-wal` y `-shm`.
+Qué hace, y por qué así:
 
-Restauración: detener el servicio, colocar el archivo en la ruta de
-`ROOTCAUSE_DATABASE_URL`, arrancar. Las migraciones se aplicarán solas si el
-respaldo viene de una versión anterior.
+| Paso | Motivo |
+|---|---|
+| `sqlite3 … ".backup '<destino>'"` | Seguro con la base en uso. Copiar con `cp` mientras el servidor escribe puede producir una instantánea rota si no viajan también `-wal` y `-shm` |
+| `PRAGMA integrity_check` sobre la copia | Un archivo del tamaño correcto puede estar corrupto |
+| Recuento de `incidents`, `audit_log` y `assets` contra el origen | Lo que importa no es que la copia abra, sino que la evidencia esté dentro |
+| Retención de las N más recientes | `ROOTCAUSE_BACKUP_KEEP`, 14 por omisión |
 
-Recogido como pendiente n.º 2 en el [índice](README.md) y desarrollado en
-[13 · Despliegue y operación](13-deployment-and-operations.md).
+Si cualquiera de las comprobaciones falla, el script termina con código 1 en vez
+de informar de un éxito: **un respaldo que nadie leyó de vuelta es una
+esperanza, no un respaldo**.
+
+Restauración —el script la imprime al terminar—: detener el servicio, colocar el
+archivo en la ruta de `ROOTCAUSE_DATABASE_URL`, borrar los `-wal` y `-shm` que
+queden, arrancar. Las migraciones pendientes se aplican solas.
+
+**Sigue siendo responsabilidad de quien opera** programar la ejecución, llevarse
+las copias fuera del anfitrión y probar una restauración real. El volumen
+`rootcause-data` de `compose.yml` preserva el archivo entre recreaciones del
+contenedor, pero **un volumen no es un respaldo**.
 
 ## Relación entre tablas y código
 

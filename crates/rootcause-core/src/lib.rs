@@ -22,7 +22,7 @@ pub mod security;
 pub use detect::{DetectionEngine, DetectionInput, RULES, RuleInfo, agent_silence, rule};
 pub use models::*;
 pub use policy::DetectionPolicy;
-pub use posture::compute_now as compute_posture;
+pub use posture::{FindingCounts, compute_from_counts, compute_now as compute_posture};
 pub use runbook::{RunbookStep, StepKind};
 pub use security::{
     AuthEvent, AuthOutcome, BindScope, CollectionGap, FirewallState, ListeningSocket, PortClass,

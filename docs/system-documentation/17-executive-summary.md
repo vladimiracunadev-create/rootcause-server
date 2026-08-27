@@ -109,7 +109,7 @@ seis meses contra la evidencia guardada.
 | Versión | `0.2.0` |
 | Madurez | Base funcional sólida, no plataforma empresarial terminada |
 | Reglas de detección | 18, publicadas por el propio programa |
-| Pruebas automatizadas | **250, todas en verde** el 2026-08-26 |
+| Pruebas automatizadas | **253, todas en verde** el 2026-08-26 |
 | Plataformas verificadas | Windows, Linux y macOS, en cada cambio |
 | Controles automáticos de calidad | 15 en integración continua, más 5 de seguridad |
 | Documentación previa | 15 documentos, 3 decisiones de arquitectura, 3 requisitos de seguridad |
@@ -197,7 +197,7 @@ y la mayoría están reconocidos por el propio proyecto.
 
 RootCause Server es una **base funcional sólida y honesta**, con una disciplina
 de verificación superior a la habitual en proyectos de su tamaño y con sus
-límites publicados en lugar de disimulados. Las 250 pruebas pasan, los tres
+límites publicados en lugar de disimulados. Las 253 pruebas pasan, los tres
 guardianes propios del repositorio pasan, y no se encontró código muerto,
 secretos filtrados ni vulnerabilidades explotables.
 
