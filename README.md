@@ -277,6 +277,26 @@ que levanta el servidor y el agente de verdad. Un trabajo final falla si
 - [Hoja de ruta](docs/ROADMAP.md)
 - [Prompt maestro](docs/MASTER_PROMPT.md)
 
+### Documentación del sistema
+
+Análisis completo del repositorio —arquitectura, código, datos, seguridad,
+operación y riesgos— en veinte documentos, cada uno con su versión en PDF:
+
+- [Índice general de documentación](docs/system-documentation/README.md)
+- [Descripción general](docs/system-documentation/01-system-overview.md)
+- [Arquitectura](docs/system-documentation/03-architecture.md)
+- [Referencia técnica](docs/system-documentation/05-technical-reference.md)
+- [Base de datos](docs/system-documentation/07-database.md)
+- [Resumen ejecutivo](docs/system-documentation/17-executive-summary.md)
+- [Guía para nuevos desarrolladores](docs/system-documentation/18-new-developer-guide.md)
+- [Documentos en PDF](docs/system-documentation/pdf/)
+
+Los PDF se regeneran desde el Markdown, que es la única fuente:
+
+```bash
+python3 scripts/docs_pdf.py
+```
+
 ---
 
 ## La familia RootCause

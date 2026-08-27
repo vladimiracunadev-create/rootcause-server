@@ -10,3 +10,6 @@ Thumbs.db
 .env
 /dist/
 /artifacts/
+# Diagramas de la documentación ya dibujados; scripts/docs_pdf.py los recrea.
+docs/system-documentation/pdf/.mermaid-cache/
+__pycache__/

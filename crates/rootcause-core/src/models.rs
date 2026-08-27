@@ -19,6 +19,7 @@ pub enum Platform {
 }
 
 impl Platform {
+    /// Platform this binary was compiled for.
     pub fn current() -> Self {
         match std::env::consts::OS {
             "windows" => Self::Windows,
@@ -419,6 +420,7 @@ pub struct IncidentCandidate {
 }
 
 impl IncidentCandidate {
+    /// Turn a fresh candidate into a stored incident, open and seen once.
     pub fn into_incident(self, observed_at: DateTime<Utc>) -> Incident {
         Incident {
             id: Uuid::new_v4(),

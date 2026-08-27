@@ -53,6 +53,11 @@ fn arrived_over_tls(request: &Request) -> bool {
         .is_some_and(|value| value.eq_ignore_ascii_case("https"))
 }
 
+/// Attach the security headers to every response.
+///
+/// `Strict-Transport-Security` is only claimed when the request demonstrably
+/// arrived over TLS, and API responses are marked `no-store` because evidence
+/// must never be served from a shared cache.
 pub async fn apply(request: Request, next: Next) -> Response {
     let over_tls = arrived_over_tls(&request);
     let is_api = request.uri().path().starts_with("/api/");

@@ -19,6 +19,10 @@ fn is_reserved(path: &str) -> bool {
     path.starts_with("api/") || path == "healthz" || path == "readyz" || path == "metrics"
 }
 
+/// Serve one embedded console asset, or the shell for an unknown path.
+///
+/// Reserved paths answer `404` instead of falling through, so a typo in an API
+/// route never returns HTML to a machine expecting JSON.
 pub async fn static_asset(uri: Uri) -> Response {
     let requested = uri.path().trim_start_matches('/');
     if is_reserved(requested) {

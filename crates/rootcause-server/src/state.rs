@@ -19,6 +19,10 @@ pub struct Runtime {
 }
 
 #[derive(Clone)]
+/// Everything a route needs, cheap to clone and shared across tasks.
+///
+/// `Debug` is implemented by hand further down so that the token can never be
+/// printed by accident.
 pub struct AppState {
     pub database: Database,
     pub engine: Arc<DetectionEngine>,
@@ -40,6 +44,7 @@ impl std::fmt::Debug for AppState {
 }
 
 impl AppState {
+    /// Freeze the startup configuration into the state every route reads.
     pub fn new(database: Database, engine: DetectionEngine, settings: &ServeSettings) -> Self {
         Self {
             database,

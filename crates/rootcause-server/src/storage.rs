@@ -52,6 +52,7 @@ const STALE_AFTER_SECONDS: i64 = 120;
 const OFFLINE_AFTER_SECONDS: i64 = 600;
 
 #[derive(Clone)]
+/// Handle to the SQLite pool. Cheap to clone; every route shares one.
 pub struct Database {
     pool: SqlitePool,
 }
@@ -77,6 +78,11 @@ struct IncidentRow {
 }
 
 impl Database {
+    /// Open the database, applying the pragmas the product relies on, and run
+    /// every pending migration.
+    ///
+    /// An in-memory URL gets a single connection on purpose: with a pool, each
+    /// connection would open a *different* empty database.
     pub async fn connect(database_url: &str) -> anyhow::Result<Self> {
         let is_memory = database_url.contains(":memory:");
         let mut options = SqliteConnectOptions::from_str(database_url)?
@@ -97,6 +103,7 @@ impl Database {
         Ok(Self { pool })
     }
 
+    /// Cheapest possible round trip, used by `/readyz`.
     pub async fn ping(&self) -> anyhow::Result<()> {
         sqlx::query("SELECT 1").execute(&self.pool).await?;
         Ok(())
@@ -104,6 +111,10 @@ impl Database {
 
     // ---------------------------------------------------------------- assets
 
+    /// Register an asset, or refresh the one already known by that identifier.
+    ///
+    /// Idempotent: the agent calls it on every cycle, and `last_seen` is what
+    /// the silence rule later reads.
     pub async fn upsert_asset(&self, asset: &AssetRegistration) -> anyhow::Result<()> {
         let now = Utc::now().to_rfc3339();
         let registration_json = serde_json::to_string(asset)?;
@@ -132,6 +143,7 @@ impl Database {
         Ok(())
     }
 
+    /// Registration of one asset, or `None` when it was never registered.
     pub async fn asset_registration(
         &self,
         agent_id: Uuid,
@@ -145,6 +157,10 @@ impl Database {
         json.map(|value| serde_json::from_str(&value).map_err(Into::into)).transpose()
     }
 
+    /// Every asset with its last sample, last surface and derived liveness.
+    ///
+    /// `posture` is left empty here: the caller fills it, because the score
+    /// depends on which incidents are in scope.
     pub async fn list_assets(&self) -> anyhow::Result<Vec<AssetView>> {
         let rows = sqlx::query_as::<_, AssetRow>(
             r#"
@@ -159,6 +175,7 @@ impl Database {
     }
 
     /// Registrations plus the moment each was last heard from.
+    /// Registration and last signal of every asset, for the silence sweep.
     pub async fn asset_heartbeats(
         &self,
     ) -> anyhow::Result<Vec<(AssetRegistration, DateTime<Utc>)>> {
@@ -177,6 +194,7 @@ impl Database {
 
     // ------------------------------------------------------------- telemetry
 
+    /// Append one sample to the history and refresh the asset's latest metrics.
     pub async fn store_sample(&self, sample: &MetricSample) -> anyhow::Result<()> {
         let sample_json = serde_json::to_string(sample)?;
         sqlx::query("INSERT INTO telemetry (agent_id, observed_at, sample_json) VALUES (?, ?, ?)")
@@ -222,6 +240,10 @@ impl Database {
         Ok(samples)
     }
 
+    /// Replace the asset's security surface with the one just observed.
+    ///
+    /// Only the latest surface is kept, and `exposed_services` is recomputed
+    /// from it so the headline counters stay consistent with what is stored.
     pub async fn store_security(
         &self,
         agent_id: Uuid,
@@ -237,6 +259,7 @@ impl Database {
         Ok(())
     }
 
+    /// Remember the last posture computed for an asset, for the inventory view.
     pub async fn store_posture(&self, agent_id: Uuid, score: u8) -> anyhow::Result<()> {
         sqlx::query("UPDATE assets SET posture_score = ? WHERE agent_id = ?")
             .bind(i64::from(score))
@@ -248,6 +271,7 @@ impl Database {
 
     // ------------------------------------------------------- file baselines
 
+    /// Last known digest of every watched file of an asset, keyed by path.
     pub async fn file_baseline(&self, agent_id: Uuid) -> anyhow::Result<BTreeMap<String, String>> {
         let rows = sqlx::query("SELECT path, digest FROM file_baselines WHERE agent_id = ?")
             .bind(agent_id.to_string())
@@ -258,6 +282,10 @@ impl Database {
             .collect()
     }
 
+    /// Move the baseline forward to the digests just observed.
+    ///
+    /// Runs **after** detection on purpose: updating it first would erase the
+    /// very change the integrity rule is looking for.
     pub async fn update_file_baseline(
         &self,
         agent_id: Uuid,
@@ -291,6 +319,10 @@ impl Database {
 
     // ------------------------------------------------------- auth pressure
 
+    /// Accumulate authentication attempts per source, service and username.
+    ///
+    /// The agent already aggregated them; this only adds the fleet-wide totals
+    /// that the threat report reads.
     pub async fn record_auth_pressure(
         &self,
         agent_id: Uuid,
@@ -378,6 +410,7 @@ impl Database {
             .collect()
     }
 
+    /// Failed attempts across the whole fleet, for the threat report header.
     pub async fn total_auth_failures(&self) -> anyhow::Result<u32> {
         let total = sqlx::query_scalar::<_, Option<i64>>("SELECT SUM(failures) FROM auth_pressure")
             .fetch_one(&self.pool)
@@ -388,6 +421,12 @@ impl Database {
 
     // ------------------------------------------------------------ incidents
 
+    /// Create a finding, or update the one that already carries its fingerprint.
+    ///
+    /// Three rules of the product live here: a repeating finding is the *same*
+    /// incident with one more occurrence; it reopens even if it had been
+    /// acknowledged, because acknowledging is not fixing; and it keeps the
+    /// worst severity ever observed rather than the latest one.
     pub async fn upsert_incident(
         &self,
         candidate: IncidentCandidate,
@@ -501,6 +540,11 @@ impl Database {
         Ok(resolved)
     }
 
+    /// Incidents matching a filter, worst severity first.
+    ///
+    /// The SQL is assembled from constant fragments and every value is bound as
+    /// a parameter; no caller input reaches the query text. A missing `limit`
+    /// means 500 rows, so aggregates built on top of this are not unbounded.
     pub async fn list_incidents(&self, filter: &IncidentFilter) -> anyhow::Result<Vec<Incident>> {
         let mut sql = String::from("SELECT incident_json FROM incidents WHERE 1 = 1");
         if filter.status.is_some() {
@@ -551,6 +595,7 @@ impl Database {
             .collect()
     }
 
+    /// One incident by identifier, or `None` when it does not exist.
     pub async fn incident(&self, id: Uuid) -> anyhow::Result<Option<Incident>> {
         let row =
             sqlx::query_as::<_, IncidentRow>("SELECT incident_json FROM incidents WHERE id = ?")
@@ -560,6 +605,10 @@ impl Database {
         row.map(|row| serde_json::from_str(&row.incident_json).map_err(Into::into)).transpose()
     }
 
+    /// Change the status of an incident and record who did it.
+    ///
+    /// Returns `None` when the incident does not exist, so the route can answer
+    /// `404` instead of pretending the change happened.
     pub async fn update_incident_status(
         &self,
         id: Uuid,
@@ -590,6 +639,7 @@ impl Database {
 
     // ---------------------------------------------------------------- counts
 
+    /// Headline numbers rendered by the console and exported as metrics.
     pub async fn counts(&self) -> anyhow::Result<DatabaseCounts> {
         let cutoff = (Utc::now() - Duration::seconds(STALE_AFTER_SECONDS)).to_rfc3339();
         let assets_total = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM assets")
@@ -633,6 +683,7 @@ impl Database {
 
     // ------------------------------------------------------------- defence
 
+    /// Persist one perimeter decision. Never fails the request it describes.
     pub async fn record_defense_event(
         &self,
         reason: &str,
@@ -676,6 +727,9 @@ impl Database {
 
     // ---------------------------------------------------------------- audit
 
+    /// Append one entry to the immutable audit trail.
+    ///
+    /// Nothing ever deletes from this table: retention does not reach it.
     pub async fn audit(
         &self,
         actor: &str,
@@ -696,6 +750,7 @@ impl Database {
         Ok(())
     }
 
+    /// Most recent audit entries, newest first.
     pub async fn list_audit(&self, limit: i64) -> anyhow::Result<Vec<AuditEntry>> {
         let rows = sqlx::query(
             "SELECT observed_at, actor, action, target, detail_json FROM audit_log ORDER BY observed_at DESC LIMIT ?",
@@ -732,6 +787,10 @@ impl Database {
 
     /// Drop telemetry, resolved incidents and audit entries past the retention
     /// window. Returns the number of telemetry rows removed.
+    /// Drop telemetry, authentication pressure and defence events past the cut.
+    ///
+    /// Incidents and the audit trail are deliberately excluded: they are the
+    /// evidence, and evidence does not expire by default.
     pub async fn purge(&self, retention_days: u32) -> anyhow::Result<u64> {
         let cutoff = (Utc::now() - Duration::days(i64::from(retention_days.max(1)))).to_rfc3339();
         let telemetry = sqlx::query("DELETE FROM telemetry WHERE observed_at < ?")

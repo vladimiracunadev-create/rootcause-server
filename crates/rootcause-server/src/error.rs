@@ -12,6 +12,7 @@ use serde::Serialize;
 use tracing::error;
 
 #[derive(Debug)]
+/// An error as the caller sees it: a status, a stable code and a message.
 pub struct ApiError {
     status: StatusCode,
     code: &'static str,
@@ -28,6 +29,7 @@ struct ErrorBody {
 }
 
 impl ApiError {
+    /// The request was understood and refused. The message says what to fix.
     pub fn bad_request(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
@@ -37,6 +39,7 @@ impl ApiError {
         }
     }
 
+    /// No usable bearer token. Deliberately identical for absent and wrong.
     pub fn unauthorized() -> Self {
         Self {
             status: StatusCode::UNAUTHORIZED,
@@ -46,6 +49,7 @@ impl ApiError {
         }
     }
 
+    /// The addressed asset or incident does not exist.
     pub fn not_found(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::NOT_FOUND,

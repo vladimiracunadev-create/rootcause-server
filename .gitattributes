@@ -2,5 +2,6 @@
 
 *.exe binary
 *.ico binary
+*.pdf binary
 *.png binary
 *.zip binary

@@ -72,6 +72,8 @@ pub struct Perimeter {
 }
 
 impl Perimeter {
+    /// Build a perimeter whose bucket refills at `rate_limit_per_minute / 60`
+    /// tokens per second.
     pub fn new(rate_limit_per_minute: u32, lockout_threshold: u32, lockout_seconds: u64) -> Self {
         let capacity = f64::from(rate_limit_per_minute.max(1));
         Self {
@@ -161,6 +163,7 @@ impl Perimeter {
         });
     }
 
+    /// Addresses currently held in the table; exported as a metric.
     pub fn tracked_clients(&self) -> usize {
         self.lock().len()
     }

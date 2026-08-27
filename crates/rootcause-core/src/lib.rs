@@ -6,11 +6,17 @@
 //! posture score — is produced here by pure functions over reported evidence,
 //! which is what makes a finding reproducible instead of merely plausible.
 
+/// Deterministic detection rules and the engine that runs them.
 pub mod detect;
+/// Contracts shared by the server, the agent and the console.
 pub mod models;
+/// Versionable thresholds, validated before they take effect.
 pub mod policy;
+/// Posture scoring, and the uninspected surfaces that must travel with it.
 pub mod posture;
+/// Guided response: written for an operator, never executed.
 pub mod runbook;
+/// Security-facing observations reported by an agent.
 pub mod security;
 
 pub use detect::{DetectionEngine, DetectionInput, RULES, RuleInfo, agent_silence, rule};

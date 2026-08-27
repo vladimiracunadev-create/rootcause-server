@@ -18,12 +18,14 @@ use rootcause_core::policy::DetectionPolicy;
     subcommand_required = true,
     arg_required_else_help = true
 )]
+/// Entry point of the command line: a subcommand is always required.
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 }
 
 #[derive(Debug, Subcommand)]
+/// The four things this binary can do.
 pub enum Command {
     /// Start the API and the embedded console.
     Serve(Box<ServeSettings>),
@@ -36,6 +38,7 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, Args)]
+/// Arguments of `policy`: print the defaults, or validate a file.
 pub struct PolicyArgs {
     /// Policy file to validate instead of printing the built-in defaults.
     #[arg(long)]
@@ -43,6 +46,10 @@ pub struct PolicyArgs {
 }
 
 #[derive(Debug, Clone, Args)]
+/// Every knob of a running instance, with its environment variable.
+///
+/// Defaults sit at the safe end of each range: loopback, authentication
+/// required, forwarded headers distrusted.
 pub struct ServeSettings {
     /// Address used by the HTTP listener.
     #[arg(long, env = "ROOTCAUSE_BIND", default_value = "127.0.0.1:8080")]
@@ -180,6 +187,7 @@ impl ServeSettings {
         Ok(policy)
     }
 
+    /// Body limit in bytes, as the `tower-http` layer expects it.
     pub fn max_body_bytes(&self) -> usize {
         (self.max_body_kib * 1024) as usize
     }

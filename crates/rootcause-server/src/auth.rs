@@ -55,6 +55,10 @@ fn tokens_match(supplied: &str, expected: &str) -> bool {
     supplied.len() == expected.len() && bool::from(supplied.as_bytes().ct_eq(expected.as_bytes()))
 }
 
+/// Gate every protected route: rate limit, then lockout, then credential.
+///
+/// Returns `429` when the perimeter rejects the caller and `401` when the token
+/// does not match. Both outcomes are persisted as defence events.
 pub async fn require_auth(
     State(state): State<AppState>,
     request: Request,

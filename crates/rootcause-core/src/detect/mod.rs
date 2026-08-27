@@ -211,6 +211,10 @@ pub struct DetectionInput<'a> {
 }
 
 impl<'a> DetectionInput<'a> {
+    /// Minimum input: identity, one sample, when it arrived and the baseline.
+    ///
+    /// Security surface and history are added with the `with_*` methods, so a
+    /// caller that has neither still produces a valid evaluation.
     pub fn new(
         registration: &'a AssetRegistration,
         sample: &'a MetricSample,
@@ -221,12 +225,14 @@ impl<'a> DetectionInput<'a> {
     }
 
     #[must_use]
+    /// Attach the security surface observed in the same cycle.
     pub fn with_security(mut self, security: Option<&'a SecuritySignals>) -> Self {
         self.security = security;
         self
     }
 
     #[must_use]
+    /// Attach previous samples, oldest first, for the rules with a window.
     pub fn with_history(mut self, history: &'a [MetricSample]) -> Self {
         self.history = history;
         self
@@ -250,6 +256,7 @@ impl DetectionEngine {
         Ok(Self { policy })
     }
 
+    /// The thresholds in force, so they can be published verbatim.
     pub const fn policy(&self) -> &DetectionPolicy {
         &self.policy
     }

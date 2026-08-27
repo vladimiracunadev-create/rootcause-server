@@ -52,6 +52,11 @@ fn self_healing_categories(security: &SecuritySignals) -> Vec<Category> {
     categories
 }
 
+/// Build the whole HTTP surface: protected API, public probes and console.
+///
+/// The order of the layers matters. Authentication is a `route_layer` on the
+/// protected sub-router, so `/healthz` and `/readyz` stay reachable, while the
+/// body limit, the timeout and the security headers wrap everything.
 pub fn router(state: AppState) -> Router {
     let max_body = state.runtime.max_body_bytes;
 

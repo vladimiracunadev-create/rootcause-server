@@ -64,6 +64,10 @@ impl BindScope {
         IpAddr::from_str(trimmed).map_or(Self::Public, Self::classify_ip)
     }
 
+    /// Classify a parsed address.
+    ///
+    /// An unspecified address (`0.0.0.0`, `::`) counts as public: it accepts
+    /// connections on every interface the host happens to have.
     pub fn classify_ip(ip: IpAddr) -> Self {
         if ip.is_loopback() {
             return Self::Loopback;
@@ -229,6 +233,7 @@ pub struct ListeningSocket {
 }
 
 impl ListeningSocket {
+    /// Build a socket, deriving its reachability from the bind address.
     pub fn new(protocol: Protocol, address: impl Into<String>, port: u16) -> Self {
         let address = address.into();
         let scope = BindScope::classify(&address);
@@ -251,6 +256,7 @@ impl ListeningSocket {
         }
     }
 
+    /// Risk family of the port, or `Other` when the catalog does not know it.
     pub fn class(&self) -> PortClass {
         port_profile(self.port).map_or(PortClass::Other, |entry| entry.class)
     }
@@ -341,6 +347,7 @@ pub struct CollectionGap {
 }
 
 impl CollectionGap {
+    /// Record a surface the agent could not inspect, and why.
     pub fn new(surface: impl Into<String>, reason: impl Into<String>) -> Self {
         Self { surface: surface.into(), reason: reason.into() }
     }
@@ -395,6 +402,9 @@ impl SecuritySignals {
         self.listeners.iter().filter(|socket| socket.scope != BindScope::Loopback)
     }
 
+    /// Whether a named surface went uninspected in this cycle.
+    ///
+    /// The server asks this before letting a category resolve on its own.
     pub fn has_gap(&self, surface: &str) -> bool {
         self.collection_gaps.iter().any(|gap| gap.surface == surface)
     }

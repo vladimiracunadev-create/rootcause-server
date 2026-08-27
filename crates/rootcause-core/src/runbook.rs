@@ -56,6 +56,7 @@ pub struct RunbookStep {
 }
 
 impl RunbookStep {
+    /// A step with no command: something to check or decide before acting.
     pub fn advice(description: impl Into<String>) -> Self {
         Self {
             description: description.into(),
@@ -67,6 +68,10 @@ impl RunbookStep {
         }
     }
 
+    /// A step with a concrete command for one platform.
+    ///
+    /// Privileges are assumed by default; call [`Self::unprivileged`] when the
+    /// command genuinely does not need them.
     pub fn command(
         description: impl Into<String>,
         kind: StepKind,

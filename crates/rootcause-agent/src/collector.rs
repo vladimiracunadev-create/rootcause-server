@@ -40,6 +40,10 @@ pub struct Collector {
 }
 
 impl Collector {
+    /// Build the collector and take the first CPU reading.
+    ///
+    /// `sysinfo` needs two readings to report a meaningful percentage, so the
+    /// constructor absorbs the mandatory wait once instead of every cycle.
     pub fn new(labels: BTreeMap<String, String>, config: CollectorConfig) -> Self {
         let hostname = System::host_name().unwrap_or_else(|| "unknown-host".to_owned());
         let mut system = System::new();
@@ -68,6 +72,7 @@ impl Collector {
         }
     }
 
+    /// Identity this agent declares, stable across restarts of the same host.
     pub fn registration(&self) -> AssetRegistration {
         self.registration.clone()
     }
