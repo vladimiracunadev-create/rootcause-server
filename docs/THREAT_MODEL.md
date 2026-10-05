@@ -42,7 +42,7 @@ control tiene perímetro propio y no solo autenticación.
 | Sensor silenciado | Regla de silencio evaluada en el servidor | `detect/availability.rs` |
 | Registro alterado por deriva de reloj | Regla de desviación horaria | `detect/hygiene.rs` |
 | Acción destructiva por el producto | El runbook nunca se ejecuta; un test prohíbe comandos destructivos | `runbook.rs` |
-| Dependencia vulnerable o sustituida | `cargo audit`, `cargo deny`, SBOM, acciones pinneadas a SHA | CI |
+| Dependencia vulnerable, retirada o sustituida | `cargo audit`, `cargo deny`, SBOM, lockfile versionado y acciones pinneadas a SHA | CI en cada cambio y semanalmente |
 | Secreto filtrado al repositorio | `gitleaks` sobre el histórico completo | CI |
 
 ## Riesgos aceptados

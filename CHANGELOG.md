@@ -7,6 +7,10 @@ semántico en cuanto el API pública alcance su primera versión estable.
 
 ### Corregido
 
+- **La auditoría semanal de dependencias vuelve a quedar limpia.** El lockfile
+  actualiza `rustls` de `0.23.43` a `0.23.45`, que corrige
+  `RUSTSEC-2026-0285`, y sustituye la versión retirada `chacha20 0.10.1` por
+  `0.10.2`. No se añadió ninguna exención a la política de avisos.
 - **Un agregado ya no describe solo la primera página.** `list_incidents`
   aplicaba `LIMIT 500` y cinco rutas lo llamaban sin límite, así que la
   puntuación de postura, las métricas de Prometheus, la topología y **el paquete
