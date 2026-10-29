@@ -222,9 +222,9 @@ advertencia de Clippy como defecto (`-D warnings` en CI).
 - **`axum` + `tower-http`** — el servidor HTTP y las capas transversales
   (límite de cuerpo, tiempo de espera, compresión, trazas).
 - **`sqlx` con `default-features = false`** — solo el driver `sqlite` y
-  `runtime-tokio-rustls`. Es el motivo por el que la aviso RUSTSEC-2023-0071
-  sobre `rsa` está exento: `rsa` cuelga del driver MySQL, que nunca se compila
-  (ver `.cargo/audit.toml`, con la comprobación correspondiente en CI).
+  `runtime-tokio-rustls`. El crate `rsa` del driver MySQL aparece en el lockfile
+  pero no entra en el grafo compilado; la exención de RUSTSEC-2023-0071 en
+  `cargo-audit` está respaldada por una comprobación expresa de CI.
 - **`reqwest` con `rustls-tls`** y sin `default-features` — evita depender de
   la biblioteca TLS del sistema.
 - **`subtle`** — comparación del token en tiempo constante.

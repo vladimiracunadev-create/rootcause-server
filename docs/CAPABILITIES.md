@@ -40,7 +40,7 @@ lo que dice **Planificado** no existe todavía, por mucho que suene razonable.
 | Exportación de evidencia | Implementado | NDJSON tipado por `kind` |
 | Métricas Prometheus | Implementado | Postura, incidentes por categoría, perímetro |
 | Política de detección versionable | Implementado | JSON validado al arrancar |
-| Control de dependencias vulnerables o retiradas | Implementado | `cargo audit` y `cargo deny` en cada cambio y semanalmente |
+| Control de dependencias vulnerables o retiradas | Implementado | `cargo audit` y `cargo deny` en cada cambio y semanalmente; la única exención de lockfile se verifica contra el grafo compilado |
 | Respuesta guiada | Implementado | Runbook con inverso; **nunca se ejecuta** |
 | Identidad individual por agente y mTLS | Planificado | Hoy todos comparten un token |
 | RBAC, MFA y SSO | Planificado | Requisito antes de uso multiusuario remoto |
