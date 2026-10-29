@@ -49,7 +49,7 @@
 | [R-18](#r-18) | El estado del perímetro no sobrevive a un reinicio | Baja | — | **Decisión deliberada** |
 | [R-19](#r-19) | Sin alta disponibilidad ni actualización sin interrupción | Baja | P3 | Límite conocido |
 | [R-20](#r-20) | Sin cola local en el agente: los ciclos perdidos no se reenvían | Baja | P3 | Nuevo |
-| [R-21](#r-21) | La exención de RUSTSEC-2023-0071 ya no encuentra a qué aplicarse | Baja | P3 | **Nuevo** |
+| [R-21](#r-21) | `cargo-deny` conserva una exención que no encuentra a qué aplicarse | Baja | P3 | **Resuelto 2026-10-29** |
 
 ---
 
@@ -613,7 +613,13 @@ detecta—.
 
 ## R-21
 
-### La exención de RUSTSEC-2023-0071 ya no encuentra a qué aplicarse
+### `cargo-deny` conserva una exención que no encuentra a qué aplicarse
+
+**Estado: resuelto el 29 de octubre de 2026.** La exención muerta se retiró de
+`deny.toml`. Se conserva en `.cargo/audit.toml`, porque esa herramienta examina
+el lockfile y `rsa` continúa allí como dependencia opcional. El control de CI
+que impide que `rsa` entre al grafo compilado sigue siendo la condición de esa
+excepción.
 
 | Campo | Valor |
 |---|---|
@@ -633,18 +639,19 @@ warning[advisory-not-detected]: advisory was not encountered
 Y `cargo tree --invert rsa` responde `nothing to print`: **`rsa` no está en el
 grafo de dependencias**, ni siquiera con todas las features activadas.
 
-**Por qué esto es una buena noticia.** La premisa de la exención era que `rsa`
-aparecía en `Cargo.lock` —un archivo agnóstico a las features— pero nunca se
-compilaba. Hoy ya ni siquiera aparece: el motivo desapareció por completo.
+**Por qué esto es una buena noticia.** `cargo-deny` ya distingue que `rsa` no
+pertenece al grafo del producto y por eso no necesita la exención. `cargo-audit`
+sí recorre el lockfile completo, donde el crate continúa presente; allí la
+exención sigue siendo necesaria y verificable.
 
 **Matiz importante.** El paso de CI que respalda la exención comprueba
 justamente que `cargo tree --invert rsa` no devuelva nada, así que **el control
 sigue haciendo su trabajo**. Lo que sobra es la exención, no la comprobación.
 
-**Recomendación.** Retirar `RUSTSEC-2023-0071` de `deny.toml` y de
-`.cargo/audit.toml`, y **conservar** el paso de CI que verifica que `rsa` sigue
-fuera del grafo: si algún día volviera a entrar, el aviso debe saltar en vez de
-quedar silenciado por una exención heredada.
+**Resolución aplicada.** Se retiró `RUSTSEC-2023-0071` de `deny.toml`, se
+conservó la excepción documentada de `.cargo/audit.toml` y se mantuvo el paso de
+CI que verifica que `rsa` sigue fuera del grafo. Si algún día entra, el build
+falla y obliga a retirar o reevaluar la excepción.
 
 ---
 
@@ -663,7 +670,7 @@ revisó:
 | `innerHTML` o manejadores en línea en la consola | **Ninguno.** `guard_console.py` en verde |
 | Código muerto o módulos huérfanos | **Ninguno.** El único caso, `rca.rs`, se eliminó en el commit `2efedb2` |
 | Acciones de GitHub sin pinnear | **Ninguna.** `guard_claims.py` en verde |
-| Dependencias con aviso sin exención justificada | **Ninguna.** `cargo audit --deny warnings`: 315 dependencias contra 1 226 avisos, sin hallazgos. `cargo deny --all-features check`: `advisories ok, bans ok, licenses ok, sources ok` |
+| Dependencias con aviso no justificado | **Ninguna.** `cargo audit --deny warnings` y `cargo deny --all-features check` quedan limpios; la única exención de lockfile tiene una comprobación de CI |
 | Cifras de la documentación desincronizadas del código | **Ninguna** en las que cubre `guard_claims.py` (18 reglas, versión `0.2.0`) |
 | Archivos con BOM, CRLF o mojibake | **Ninguno.** 109 archivos verificados |
 | Fallos de prueba | **Ninguno.** 253 pruebas, 0 fallos, el 2026-08-26 |

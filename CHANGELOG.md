@@ -7,6 +7,13 @@ semántico en cuanto el API pública alcance su primera versión estable.
 
 ### Corregido
 
+- **Los dos PR de dependencias vuelven a tener una base auditable.** Se actualiza
+  `quinn-proto` a `0.11.18`, `rustls` a `0.23.46`, `rustls-webpki` a
+  `0.103.16`, `webpki-roots` a `1.0.10` y `tokio` a `1.53.3`, las versiones
+  corregidas para los avisos RustSec publicados en octubre de 2026. También se
+  retira de `cargo-deny` la referencia muerta a `RUSTSEC-2023-0071`;
+  `cargo-audit` conserva la única exención necesaria porque `rsa` sigue en el
+  lockfile, y CI prueba que no entra en ningún objetivo compilado.
 - **La auditoría semanal de dependencias vuelve a quedar limpia.** El lockfile
   actualiza `rustls` de `0.23.43` a `0.23.45`, que corrige
   `RUSTSEC-2026-0285`, y sustituye la versión retirada `chacha20 0.10.1` por

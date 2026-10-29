@@ -255,33 +255,20 @@ quién falló, no quién leyó. Recogido en
 - `reqwest` con `default-features = false` y `rustls-tls`.
 - `sysinfo` con `default-features = false` y solo `disk`, `network`, `system`.
 
-### La única exención de aviso
+### Una exención de lockfile, verificada contra el grafo
 
-**RUSTSEC-2023-0071** (ataque Marvin sobre `rsa`, sin versión corregida).
+`cargo-audit` examina `Cargo.lock`, donde `rsa` aparece por las dependencias
+opcionales del driver MySQL de `sqlx`. El producto solo activa SQLite, así que
+`rsa` no entra en ningún objetivo compilado. RUSTSEC-2023-0071 es la única
+exención de `.cargo/audit.toml`, y CI ejecuta
+`cargo tree --all-features --target all --invert rsa`: si devuelve una cadena,
+el build falla. `deny.toml` no duplica la exención porque su grafo ya distingue
+qué dependencias forman parte del producto.
 
-La exención está en `.cargo/audit.toml` y en `deny.toml`, **con su razón
-escrita y una comprobación que la respalda**: `rsa` aparece en `Cargo.lock`
-porque el archivo de bloqueo es agnóstico a las features y lista todo lo que
-*podría* compilarse. Aquí nunca se compila: cuelga del driver MySQL de `sqlx`,
-que no se activa en ningún objetivo. `cargo tree --invert rsa` no devuelve nada,
-y **el trabajo «Dependencias y licencias» de CI falla si algún día devuelve
-algo**.
-
-Es la forma correcta de exentar un aviso: una exención sin verificación es una
-excusa.
-
-**Comprobado en este análisis (2026-08-26).** `cargo tree --invert rsa` no
-devuelve nada: `rsa` no está en el grafo, así que la premisa de la exención
-sigue siendo cierta. `cargo deny --all-features check` va más lejos y avisa de
-que **la propia exención ya no encuentra a qué aplicarse**:
-
-```text
-warning[advisory-not-detected]: advisory was not encountered
-14 │ ignore = ["RUSTSEC-2023-0071"]
-   │            ━━━━━━━━━━━━━━━━━ no crate matched advisory criteria
-```
-
-Es un buen problema: la exención se puede retirar. Recogido como
+El 29 de octubre de 2026 también se fijaron explícitamente las versiones
+corregidas de `quinn-proto`, `rustls`, `rustls-webpki`, `webpki-roots` y
+`tokio` tras los avisos RustSec de octubre. La retirada de la referencia muerta
+en `cargo-deny` queda registrada en
 [R-21](15-risks-and-technical-debt.md#r-21).
 
 ## Seguridad de la consola

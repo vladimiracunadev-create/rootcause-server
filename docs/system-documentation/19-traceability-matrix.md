@@ -326,10 +326,10 @@
 | **Herramientas** | `cargo deny`, `cargo audit`, `gitleaks`, `zizmor`, `actionlint`, `trivy`, `hadolint`, CodeQL |
 | **Inventario** | `scripts/sbom.py` (CycloneDX, solo biblioteca estándar) |
 | **Guardián** | `scripts/guard_claims.py` para el pinneo a SHA |
-| **Exención documentada** | RUSTSEC-2023-0071, **con comprobación de CI que falla si deja de ser cierta** |
-| **Pruebas** | Trabajo «Dependencias y licencias»; `guard_claims.py` ejecutado el 2026-08-26: en verde |
+| **Exenciones activas** | Solo RUSTSEC-2023-0071 en `cargo-audit`; CI comprueba que `rsa` no entra en el grafo compilado |
+| **Pruebas** | Trabajo «Dependencias y licencias»; `guard_claims.py`; control explícito que mantiene `rsa` fuera del grafo |
 | **Documentos** | [11](11-security.md), [13](13-deployment-and-operations.md) |
-| **Estado** | **Verificado.** `cargo deny --all-features check` → `advisories ok, bans ok, licenses ok, sources ok`; `cargo audit --deny warnings` → 315 dependencias sin hallazgos; `guard_claims.py` confirma el pinneo a SHA |
+| **Estado** | **Verificado.** `cargo deny --all-features check` y `cargo audit --deny warnings` limpios; `guard_claims.py` confirma el pinneo a SHA |
 
 ---
 
