@@ -142,13 +142,13 @@ jobs:
         run: cargo deny --all-features check
       - name: Avisos de seguridad publicados
         run: cargo audit --deny warnings
-      - name: La exención de RUSTSEC-2023-0071 sigue siendo cierta
+      - name: La exención de RUSTSEC-2023-0071 sigue fuera del grafo
         run: |
-          # `rsa` está en Cargo.lock porque el archivo de bloqueo es agnóstico a
-          # las features, pero no se compila en ningún objetivo. Si algún día se
-          # compila, la exención deja de ser legítima y este paso lo dice.
+          # cargo-audit examina Cargo.lock, donde `rsa` aparece por las
+          # dependencias opcionales de sqlx. La exención solo es legítima
+          # mientras el crate no entre en ningún objetivo compilado.
           if cargo tree --all-features --target all --invert rsa 2>/dev/null | grep -q '^rsa'; then
-            echo "::error::rsa entró al grafo de compilación; revisa .cargo/audit.toml"
+            echo "::error::rsa entró al grafo de compilación; la exención ya no es válida"
             exit 1
           fi
           echo "rsa no se compila en ningún objetivo: la exención sigue siendo válida"

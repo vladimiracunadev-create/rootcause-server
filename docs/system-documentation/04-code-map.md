@@ -21,7 +21,7 @@
 | [`scripts/`](../../scripts/) | Guardianes de CI, prueba de humo, SBOM, utilidades | Alta | activo |
 | `config/` | **Vacío y fuera del control de versiones.** `git ls-files config` no devuelve nada | Ninguna | no determinado |
 | [`.github/`](../../.github/) | Workflows, plantillas, CODEOWNERS, Dependabot | Alta | activo |
-| [`.cargo/`](../../.cargo/) | `audit.toml`: exenciones de `cargo audit` con su razón | Media | activo |
+| [`.cargo/`](../../.cargo/) | `audit.toml`: única exención de lockfile, con su prueba de CI | Media | activo |
 | `target/` | Artefactos de compilación (ignorado por Git) | — | generado |
 
 ### Archivos de la raíz

@@ -7,11 +7,11 @@
 ignore = [
     # RUSTSEC-2023-0071 — ataque Marvin sobre `rsa`, sin versión corregida.
     #
-    # `rsa` aparece en Cargo.lock porque el archivo de bloqueo es agnóstico a
-    # las features: lista todo lo que *podría* compilarse. Aquí nunca se
-    # compila. sqlx entra con `default-features = false` y solo el driver
-    # `sqlite`; `rsa` cuelga del driver de MySQL, que no se activa en ningún
-    # objetivo. `cargo tree --invert rsa` no devuelve nada, y el trabajo
-    # "Dependencias y licencias" de CI falla si algún día devuelve algo.
+    # `rsa` aparece en Cargo.lock porque el archivo de bloqueo conserva
+    # dependencias opcionales de sqlx. Aquí nunca se compila: sqlx entra con
+    # `default-features = false` y solo el driver `sqlite`; `rsa` cuelga del
+    # driver MySQL, que no se activa en ningún objetivo. CI ejecuta
+    # `cargo tree --all-features --target all --invert rsa` y falla si algún
+    # día devuelve una cadena de dependencias.
     "RUSTSEC-2023-0071",
 ]

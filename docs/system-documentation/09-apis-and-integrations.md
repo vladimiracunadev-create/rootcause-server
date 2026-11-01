@@ -419,9 +419,9 @@ de Docker. Esa superficie está gestionada explícitamente:
 - `Cargo.lock` versionado;
 - `cargo deny` sobre licencias, orígenes desconocidos, duplicados y versiones
   retiradas;
-- `cargo audit` con una única exención documentada y **verificada por CI**
-  (RUSTSEC-2023-0071 sobre `rsa`, que nunca se compila porque el driver MySQL
-  de `sqlx` no se activa);
+- `cargo audit` con una única exención de lockfile para RUSTSEC-2023-0071; CI
+  comprueba que `rsa` no entra en el grafo porque el driver MySQL de `sqlx` no
+  se activa;
 - toda acción de GitHub pinneada a SHA de 40 caracteres, comprobado por
   `guard_claims.py`;
 - SBOM CycloneDX generado en cada ejecución del workflow de seguridad.

@@ -448,15 +448,15 @@
 | **Solución** | Relanzar el trabajo que no se ejecutó |
 | **Riesgo** | Ninguno. **Un control que no se ejecutó no cuenta como aprobado** |
 
-### `cargo audit` falla por RUSTSEC-2023-0071
+### El control de RUSTSEC-2023-0071 falla
 
 | | |
 |---|---|
-| **Causa** | La exención dejó de aplicarse, o `cargo tree --invert rsa` empezó a devolver algo |
-| **Diagnóstico** | `cargo tree --invert rsa`. Si devuelve una cadena de dependencias, **`rsa` sí se está compilando** |
-| **Solución** | Investigar qué feature activó el driver MySQL de `sqlx` y desactivarla. **La exención no se amplía: se corrige la causa** |
+| **Causa** | `cargo tree --all-features --target all --invert rsa` empezó a devolver algo |
+| **Diagnóstico** | Ejecutar el mismo comando. Si devuelve una cadena de dependencias, **`rsa` sí entró al producto** |
+| **Solución** | Investigar qué feature activó el driver MySQL de `sqlx` y desactivarla. La exención no se amplía: se corrige la causa |
 | **Archivos** | [`.cargo/audit.toml`](../../.cargo/audit.toml), [`deny.toml`](../../deny.toml) |
-| **Riesgo** | Ampliar la exención sin verificar la convertiría en una excusa |
+| **Riesgo** | RUSTSEC-2023-0071 afecta a `rsa`; la exención solo es válida mientras el crate permanezca fuera del grafo compilado |
 
 ### `scripts/smoke.sh` falla en local pero CI está verde
 
