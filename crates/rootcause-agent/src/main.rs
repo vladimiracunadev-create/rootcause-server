@@ -137,7 +137,7 @@ async fn main() -> anyhow::Result<()> {
     let labels = cli.labels.iter().cloned().collect::<BTreeMap<_, _>>();
     let config = cli.collector_config();
     let watched = config.watched_files.len();
-    let mut collector = Collector::new(labels, config);
+    let mut collector = Collector::new(labels, config)?;
     let registration = collector.registration();
 
     info!(
