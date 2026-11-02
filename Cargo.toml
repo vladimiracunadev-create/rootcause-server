@@ -29,7 +29,7 @@ serde_json = "1.0.143"
 sha2 = "0.10.9"
 sqlx = { version = "0.8.6", default-features = false, features = ["chrono", "json", "macros", "migrate", "runtime-tokio-rustls", "sqlite", "uuid"] }
 subtle = "2.6.1"
-sysinfo = { version = "0.39.6", default-features = false, features = ["disk", "network", "system"] }
+sysinfo = { version = "0.40.0", default-features = false, features = ["disk", "network", "system"] }
 tokio = { version = "1.47.1", features = ["fs", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
 tower = "0.5.2"
 tower-http = { version = "0.7.0", features = ["compression-gzip", "cors", "limit", "request-id", "set-header", "timeout", "trace"] }
