@@ -44,9 +44,13 @@ impl Collector {
     ///
     /// `sysinfo` needs two readings to report a meaningful percentage, so the
     /// constructor absorbs the mandatory wait once instead of every cycle.
-    pub fn new(labels: BTreeMap<String, String>, config: CollectorConfig) -> Self {
-        let hostname = System::host_name().unwrap_or_else(|| "unknown-host".to_owned());
-        let mut system = System::new();
+    ///
+    /// Fails when the platform refuses to hand over the process, disk or
+    /// network handles: a sensor that cannot look must say so instead of
+    /// starting up and reporting zeros.
+    pub fn new(labels: BTreeMap<String, String>, config: CollectorConfig) -> anyhow::Result<Self> {
+        let hostname = System::host_name().unwrap_or_else(|_| "unknown-host".to_owned());
+        let mut system = System::new().context("the platform refused to open a system handle")?;
         system.refresh_memory();
         system.refresh_cpu_usage();
         // The first CPU reading is meaningless without a second one to diff.
@@ -57,19 +61,22 @@ impl Collector {
             agent_id: stable_agent_id(&hostname),
             hostname,
             platform: Platform::current(),
-            os_version: System::long_os_version(),
-            kernel_version: System::kernel_version(),
+            // `None` keeps an unreadable field unreported instead of inventing one.
+            os_version: System::long_os_version().ok(),
+            kernel_version: System::kernel_version().ok(),
             architecture: std::env::consts::ARCH.to_owned(),
             agent_version: env!("CARGO_PKG_VERSION").to_owned(),
             labels,
         };
-        Self {
+        Ok(Self {
             system,
-            disks: Disks::new_with_refreshed_list(),
-            networks: Networks::new_with_refreshed_list(),
+            disks: Disks::new_with_refreshed_list()
+                .context("the platform refused to enumerate disks")?,
+            networks: Networks::new_with_refreshed_list()
+                .context("the platform refused to enumerate network interfaces")?,
             registration,
             config,
-        }
+        })
     }
 
     /// Identity this agent declares, stable across restarts of the same host.
@@ -104,7 +111,9 @@ impl Collector {
                     acc.1.saturating_add(network.total_transmitted()),
                 )
             });
-        let load = System::load_average();
+        // An unreadable load average stays unreported rather than becoming zero.
+        let load_average =
+            System::load_average().ok().map(|load| [load.one, load.five, load.fifteen]);
 
         let sample = MetricSample {
             agent_id: self.registration.agent_id,
@@ -112,8 +121,8 @@ impl Collector {
             cpu_percent: self.system.global_cpu_usage().clamp(0.0, 100.0),
             memory_percent,
             disk_percent: percent(disk_used, disk_total),
-            uptime_seconds: System::uptime(),
-            load_average: Some([load.one, load.five, load.fifteen]),
+            uptime_seconds: System::uptime().context("the platform refused to report uptime")?,
+            load_average,
             network_rx_bytes,
             network_tx_bytes,
             disk_free_bytes: Some(disk_free),
@@ -199,7 +208,8 @@ mod tests {
     #[tokio::test]
     async fn disabling_security_declares_the_gap_instead_of_reporting_nothing() {
         let config = CollectorConfig { security: false, ..CollectorConfig::default() };
-        let collector = Collector::new(BTreeMap::new(), config);
+        let collector = Collector::new(BTreeMap::new(), config)
+            .expect("the local host must expose its system handles");
         let signals = collector.security().await;
         assert!(signals.listeners.is_empty());
         assert!(signals.has_gap("security"));
@@ -207,7 +217,8 @@ mod tests {
 
     #[test]
     fn a_sample_from_this_machine_is_valid() {
-        let mut collector = Collector::new(BTreeMap::new(), CollectorConfig::default());
+        let mut collector = Collector::new(BTreeMap::new(), CollectorConfig::default())
+            .expect("the local host must expose its system handles");
         let sample = collector.sample().expect("the local host must produce a valid sample");
         assert!(sample.validate().is_ok());
         assert_eq!(sample.agent_id, collector.registration().agent_id);

@@ -7,6 +7,21 @@ semántico en cuanto el API pública alcance su primera versión estable.
 
 ### Corregido
 
+- **El agente migra a `sysinfo` 0.40 sin inventar lecturas.** La versión 0.40
+  convierte en falibles los constructores y las consultas estáticas de
+  plataforma (`System::new`, `Disks::new_with_refreshed_list`,
+  `Networks::new_with_refreshed_list`, `System::uptime`,
+  `System::load_average`, `System::long_os_version`, `System::kernel_version`).
+  La migración respeta REQ-SEC-003 en cada caso en vez de rellenar con ceros:
+  - `Collector::new` devuelve `anyhow::Result<Self>`. Un sensor que no consigue
+    los manejadores de sistema, disco o red **no arranca**, en lugar de
+    levantarse y reportar cero.
+  - Una carga media ilegible se reporta como `load_average: None`, y la versión
+    del sistema o del kernel que la plataforma no entrega queda sin reportar,
+    no en un valor fabricado.
+  - Un `uptime` ilegible aborta el ciclo con su motivo: la muestra entera se
+    descarta antes que viajar con un tiempo de actividad falso de cero.
+
 - **Los dos PR de dependencias vuelven a tener una base auditable.** Se actualiza
   `quinn-proto` a `0.11.18`, `rustls` a `0.23.46`, `rustls-webpki` a
   `0.103.16`, `webpki-roots` a `1.0.10` y `tokio` a `1.53.3`, las versiones
